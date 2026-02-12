@@ -48,7 +48,7 @@ export class Camera {
       this.controls.maxZoom = 5; // 最大缩放比例
     } else {
       // 透视相机使用minDistance和maxDistance
-      this.controls.minDistance = 20; // 最小距离（限制最大缩放）
+      this.controls.minDistance = 16; // 最小距离（限制最大缩放）
       this.controls.maxDistance = 60; // 最大距离（限制最小缩放）
     }
     // 禁止翻转 - 限制垂直旋转角度
