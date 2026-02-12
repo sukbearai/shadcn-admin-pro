@@ -22,6 +22,7 @@ const option = ref({
     height: "86%",
   },
   legend: {
+    show: false,
     top: "8%",
     icon: "circle",
     itemWidth: 8,
@@ -181,7 +182,7 @@ const option = ref({
       },
     },
     {
-      name: "背景",
+      name: "",
       type: "bar",
       yAxisIndex: 1,
       barGap: "-100%",
