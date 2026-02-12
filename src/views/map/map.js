@@ -850,7 +850,7 @@ export class World extends Mini3d {
       label.init(
         `<div class="provinces-label ${index > 4 ? "yellow" : ""}">
       <div class="provinces-label-wrap">
-        <div class="number"><span class="value" data-value="${maliciousCodeCount}">${formatInteger(maliciousCodeCount)}</span><span class="unit">检测恶意代码数</span></div>
+        <div class="number"><span class="value" data-value="${maliciousCodeCount}">${formatInteger(maliciousCodeCount)}</span><span class="unit">已检测恶意代码数</span></div>
         <div class="name">
           <span class="zh">${data.name}</span>
           <span class="en">${data.enName.toUpperCase()}</span>

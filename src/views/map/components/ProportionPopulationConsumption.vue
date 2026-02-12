@@ -1,10 +1,10 @@
 <template>
   <div class="right-card">
-    <m-card title="人群消费占比">
+    <m-card title="攻击来源占比">
       <div class="population-proportion">
         <div class="population-proportion-chart">
           <v-chart ref="vChart" :option="option" :autoresize="true" />
-          <div class="label-name">消费占比</div>
+          <div class="label-name">来源占比</div>
         </div>
         <div class="pie-legend">
           <div class="pie-legend-item" v-for="(item, index) in state.pieData" :key="index">
@@ -18,32 +18,17 @@
   </div>
 </template>
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from "vue"
+import { ref, reactive } from "vue"
 import * as echarts from "echarts"
 import mCard from "@/components/mCard/index.vue"
 import VChart from "vue-echarts"
+import { attackSourceShareData } from "./mock/securityDashboardMock"
 
 const state = reactive({
   pieDataColor: ["#17E6C3", "#40CFFF", "#1979FF", "#FFC472"],
-  pieData: [
-    {
-      name: "类型1",
-      value: 40,
-    },
-    {
-      name: "类型2",
-      value: 25,
-    },
-    {
-      name: "类型3",
-      value: 20,
-    },
-    {
-      name: "类型4",
-      value: 15,
-    },
-  ],
+  pieData: attackSourceShareData.map((item) => ({ ...item })),
 })
+
 const option = ref({
   tooltip: {
     trigger: "axis",
@@ -59,7 +44,6 @@ const option = ref({
       fontSize: 10,
     },
   },
-
   series: [
     {
       name: "",
@@ -71,13 +55,11 @@ const option = ref({
       label: { show: false },
       radius: ["55%", "70%"],
       color: ["#c487ee", "#deb140", "#49dff0", "#034079", "#6f81da", "#00ffb4"],
-
       data: [
         {
-          value: 40,
-          name: "类型1",
+          value: state.pieData[0].value,
+          name: state.pieData[0].name,
           itemStyle: {
-            //颜色渐变
             color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
               { offset: 0, color: "rgba(3,65,128,1)" },
               { offset: 1, color: "rgba(115,208,255,1)" },
@@ -85,10 +67,9 @@ const option = ref({
           },
         },
         {
-          value: 25,
-          name: "类型2",
+          value: state.pieData[1].value,
+          name: state.pieData[1].name,
           itemStyle: {
-            //颜色渐变
             color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
               { offset: 0, color: "rgba(11, 77, 44, 1)" },
               { offset: 1, color: "rgba(77, 255, 181, 1)" },
@@ -96,10 +77,9 @@ const option = ref({
           },
         },
         {
-          value: 20,
-          name: "类型3",
+          value: state.pieData[2].value,
+          name: state.pieData[2].name,
           itemStyle: {
-            //颜色渐变
             color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
               { offset: 0, color: "rgba(117, 117, 117, 1)" },
               { offset: 1, color: "rgba(230, 230, 230, 1)" },
@@ -107,10 +87,9 @@ const option = ref({
           },
         },
         {
-          value: 15,
-          name: "类型4",
+          value: state.pieData[3].value,
+          name: state.pieData[3].name,
           itemStyle: {
-            //颜色渐变
             color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
               { offset: 0, color: "rgba(153, 105, 38, 1)" },
               { offset: 1, color: "rgba(255, 200, 89, 1)" },
@@ -121,7 +100,6 @@ const option = ref({
     },
   ],
 })
-
 </script>
 <style lang="scss">
 .population-proportion {

@@ -1,19 +1,20 @@
 <template>
   <div class="left-card">
-    <m-card title="近年经济情况">
+    <m-card title="近12月安全事件趋势">
       <v-chart ref="vChart" :option="option" :autoresize="true" />
     </m-card>
   </div>
 </template>
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from "vue"
+import { ref } from "vue"
 import * as echarts from "echarts"
 import mCard from "@/components/mCard/index.vue"
 import VChart from "vue-echarts"
+import { monthlySecurityIncidentTrend } from "./mock/securityDashboardMock"
 
 const option = ref({
   title: {
-    text: "亿元",
+    text: "次",
     left: "5%",
     top: "8%",
     textStyle: {
@@ -40,12 +41,15 @@ const option = ref({
       color: "#ffffff",
       fontSize: 10,
     },
+    formatter: (params) => {
+      const item = params?.[0]
+      return `${item.axisValue}<br/>安全事件：${item.value.toLocaleString("zh-CN")} 次`
+    },
   },
   color: ["#6BC7F6"],
   xAxis: [
     {
       type: "category",
-
       axisLine: {
         show: false,
         lineStyle: {
@@ -64,20 +68,7 @@ const option = ref({
         interval: 1,
         padding: [0, 0, 0, 0],
       },
-      data: [
-        "2023/04",
-        "2023/05",
-        "2023/06",
-        "2023/07",
-        "2023/08",
-        "2023/09",
-        "2023/10",
-        "2023/11",
-        "2023/12",
-        "2024/01",
-        "2024/02",
-        "2024/03",
-      ],
+      data: monthlySecurityIncidentTrend.months,
     },
     {
       axisLine: {
@@ -91,7 +82,6 @@ const option = ref({
   ],
   yAxis: {
     type: "value",
-
     axisLine: {
       show: false,
     },
@@ -115,16 +105,15 @@ const option = ref({
   },
   series: [
     {
-      data: [500, 1000, 300, 1300, 500, 1330, 620, 400, 700, 1300, 300, 1234],
+      data: monthlySecurityIncidentTrend.values,
       type: "line",
       smooth: true,
       symbol:
         "image://data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAAAAXNSR0IArs4c6QAAAQ5JREFUOE+1la1OQ0EQRs8kCFIQdVCCxIBpCK1AInkDHC+B4QkwvASub4GsaE0NGCRpKhGFVDQZ+Mjem9vNbkphmWTMfjNnd3b2x0iYuxuwH7wNbIewBfAGzORm5nG6ElfM3QU6AXZSkzXG3oEnMxO8thWgux8DR2tAsfxiZs/VYA38Jazi1NBvYCizv+HK4vCRyrfQgIsf7Nm6+bSnjwIeAGeZaGnXQDfoE+ABmGbixwKeAoeJAMHuv3w30ubATQb6KqDKjZPEuAXOMysZAncJbS7gJbCVEAdAKwP8AK4S2vJfgMVLLt6UDtAreWx0W8od7OJXryq16OPwR2j6+WpAyz2wDagape7vARt9AZ+G3HmhiKS3xwAAAABJRU5ErkJggg==",
       symbolSize: 10,
-      showSymbol: false, // 是否显示 symbol, 如果 false 则只有在 tooltip hover 的时候显示。
+      showSymbol: false,
       yAxisIndex: 0,
       z: 0,
-      // 设置高亮样式
       emphasis: {
         focus: "none",
         itemStyle: { color: "white" },
@@ -135,8 +124,8 @@ const option = ref({
         distance: 10,
         color: "#ffffff",
         fontSize: 10,
+        formatter: ({ value }) => value.toLocaleString("zh-CN"),
       },
-
       lineStyle: {
         shadowColor: "rgba(0, 0, 0, 0.4)",
         shadowBlur: 3,
@@ -168,6 +157,5 @@ const option = ref({
     },
   ],
 })
-
 </script>
 <style lang="scss"></style>

@@ -1,15 +1,18 @@
 <template>
   <div class="right-card">
-    <m-card title="专项资金用途">
+    <m-card title="安全能力投入">
       <v-chart ref="vChart" :option="option" :autoresize="true" />
     </m-card>
   </div>
 </template>
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from "vue"
+import { ref } from "vue"
 import * as echarts from "echarts"
 import mCard from "@/components/mCard/index.vue"
 import VChart from "vue-echarts"
+import { securityCapabilityInvestmentData } from "./mock/securityDashboardMock"
+
+const securityCapabilityData = securityCapabilityInvestmentData
 
 const option = ref({
   grid: {
@@ -29,7 +32,6 @@ const option = ref({
       lineHeight: 20,
     },
   },
-
   tooltip: {
     trigger: "axis",
     axisPointer: {
@@ -44,13 +46,15 @@ const option = ref({
       fontSize: 10,
       lineHeight: 156,
     },
+    formatter: (params) => {
+      const item = params?.[0]
+      return `${item.name}<br/>投入：${item.value.toLocaleString("zh-CN")} 万`
+    },
   },
-  color: ["#6BC7F6", "#44E6A2"],
   xAxis: [
     {
       type: "value",
       interval: 0,
-
       axisLine: {
         show: false,
         lineStyle: {
@@ -70,7 +74,6 @@ const option = ref({
       },
     },
   ],
-
   yAxis: [
     {
       type: "category",
@@ -91,7 +94,7 @@ const option = ref({
       splitLine: {
         show: false,
       },
-      data: ["扶贫资金", "医疗卫生", "渔业资金", "社区改造"],
+      data: securityCapabilityData.map((item) => item.name),
     },
     {
       inverse: true,
@@ -109,7 +112,7 @@ const option = ref({
     {
       data: [
         {
-          value: 100,
+          value: securityCapabilityData[0].value,
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
               { offset: 0, color: "rgba(3,65,128,1)" },
@@ -118,7 +121,7 @@ const option = ref({
           },
         },
         {
-          value: 80,
+          value: securityCapabilityData[1].value,
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
               { offset: 0, color: "rgba(11, 77, 44, 1)" },
@@ -127,7 +130,7 @@ const option = ref({
           },
         },
         {
-          value: 60,
+          value: securityCapabilityData[2].value,
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
               { offset: 0, color: "rgba(117, 117, 117, 1)" },
@@ -136,7 +139,7 @@ const option = ref({
           },
         },
         {
-          value: 50,
+          value: securityCapabilityData[3].value,
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 1, 1, [
               { offset: 0, color: "rgba(153, 105, 38, 1)" },
@@ -156,8 +159,7 @@ const option = ref({
         padding: [-18, 0, 0, 0],
         color: "#16C1A6",
         fontSize: 12,
-        formatter:
-          "{title|{b}}                                                                              {value|{c}}  {unit|万元}",
+        formatter: "{title|{b}}                                                                              {value|{c}}  {unit|万}",
         rich: {
           title: {
             color: "#FFFFFF",
@@ -195,7 +197,6 @@ const option = ref({
     },
   ],
 })
-
 </script>
 
 <style lang="scss"></style>

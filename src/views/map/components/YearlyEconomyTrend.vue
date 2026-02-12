@@ -1,6 +1,6 @@
 <template>
   <div class="left-card">
-    <m-card title="年度经济增长点">
+    <m-card title="告警类型占比">
       <div class="pie-chat-wrap">
         <div class="pie-chat">
           <m-pie
@@ -35,7 +35,7 @@
           <div class="pie-legend-item" v-for="(item, index) in state.pieData" :key="index">
             <div class="icon" :style="{ borderColor: state.pieDataColor[index] }"></div>
             <div class="name">{{ item.name }}</div>
-            <div class="value">{{ item.value }}<span class="unit">亿</span></div>
+            <div class="value">{{ item.value }}<span class="unit">件</span></div>
           </div>
         </div>
       </div>
@@ -43,38 +43,21 @@
   </div>
 </template>
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from "vue"
+import { ref, reactive } from "vue"
 import mCard from "@/components/mCard/index.vue"
 import mPie from "@/components/mPie/index.vue"
 import mCountTo from "@/components/mCountTo/index.js"
+import { alertTypeDistributionData } from "./mock/securityDashboardMock"
 
 const pie = ref(null)
 const state = reactive({
   pieDataColor: ["#17E6C3", "#40CFFF", "#1979FF", "#FFC472"],
-  pieData: [
-    {
-      name: "类型1",
-      value: 400,
-    },
-    {
-      name: "类型2",
-      value: 250,
-    },
-    {
-      name: "类型3",
-      value: 200,
-    },
-    {
-      name: "类型4",
-      value: 150,
-    },
-  ],
+  pieData: alertTypeDistributionData.map((item) => ({ ...item })),
 })
+
 function getNumber(slotProps) {
   return Number(((slotProps.data.value / slotProps.data.count) * 100).toFixed(2))
 }
-
-
 </script>
 <style lang="scss">
 .pie-chat-wrap {

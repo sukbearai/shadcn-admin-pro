@@ -1,19 +1,20 @@
 <template>
   <div class="right-card">
-    <m-card title="各季度增长情况">
+    <m-card title="季度处置效率">
       <v-chart ref="vChart" :option="option" :autoresize="true" />
     </m-card>
   </div>
 </template>
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from "vue"
+import { ref } from "vue"
 import * as echarts from "echarts"
 import mCard from "@/components/mCard/index.vue"
 import VChart from "vue-echarts"
+import { quarterlyResponseEfficiency } from "./mock/securityDashboardMock"
 
 const option = ref({
   title: {
-    text: "亿元",
+    text: "%",
     left: "5%",
     top: "8%",
     textStyle: {
@@ -63,7 +64,7 @@ const option = ref({
         interval: 0,
         padding: [0, 0, 0, 0],
       },
-      data: ["一季度", "二季度", "三季度", "四季度"],
+      data: quarterlyResponseEfficiency.quarters,
     },
     {
       axisLine: {
@@ -77,7 +78,6 @@ const option = ref({
   ],
   yAxis: {
     type: "value",
-
     axisLine: {
       show: false,
     },
@@ -101,8 +101,8 @@ const option = ref({
   },
   series: [
     {
-      name: "类型1",
-      data: [100, 120, 130, 110],
+      name: "自动化处置率",
+      data: quarterlyResponseEfficiency.automationRate,
       type: "bar",
       barWidth: 4,
       label: {
@@ -117,8 +117,8 @@ const option = ref({
       },
     },
     {
-      name: "类型2",
-      data: [60, 100, 150, 90],
+      name: "告警闭环率",
+      data: quarterlyResponseEfficiency.closureRate,
       type: "bar",
       barWidth: 4,
       barGap: 2,
@@ -133,24 +133,7 @@ const option = ref({
         ]),
       },
     },
-    // {
-    //   name: "",
-    //   type: "bar",
-    //   xAxisIndex: 1,
-    //   z: 2,
-    //   data: [150, 150, 150, 150],
-    //   // 设置高亮样式
-    //   emphasis: {
-    //     focus: "none",
-    //     itemStyle: { color: "rgba(255,255,255,0.8)" },
-    //   },
-    //   itemStyle: {
-    //     color: "rgba(122,140,153,0.6)",
-    //     opacity: 0.1,
-    //   },
-    // },
   ],
 })
-
 </script>
 <style lang="scss"></style>

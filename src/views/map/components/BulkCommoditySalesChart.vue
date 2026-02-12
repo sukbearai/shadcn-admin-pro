@@ -1,19 +1,26 @@
 <template>
   <div class="left-card">
-    <m-card title="大宗商品销售额">
+    <m-card title="威胁类型TOP8">
       <v-chart ref="vChart" :option="option" :autoresize="true" />
     </m-card>
   </div>
 </template>
 <script setup>
-import { ref, onMounted, nextTick, onBeforeUnmount } from "vue"
+import { ref } from "vue"
 import * as echarts from "echarts"
 import mCard from "@/components/mCard/index.vue"
 import VChart from "vue-echarts"
+import { threatTypeTop8Data } from "./mock/securityDashboardMock"
+
+const mockThreatTypeData = threatTypeTop8Data
+
+const categories = mockThreatTypeData.map((item) => item.type)
+const values = mockThreatTypeData.map((item) => item.count)
+const axisMax = Math.ceil(Math.max(...values) / 50) * 50
 
 const option = ref({
   title: {
-    text: "亿元",
+    text: "次",
     left: "5%",
     top: "8%",
     textStyle: {
@@ -22,9 +29,9 @@ const option = ref({
     },
   },
   grid: {
-    left: "12%",
+    left: "10%",
     top: "25%",
-    width: "82%",
+    width: "84%",
     height: "55%",
   },
   tooltip: {
@@ -39,6 +46,10 @@ const option = ref({
     textStyle: {
       color: "#ffffff",
       fontSize: 10,
+    },
+    formatter: (params) => {
+      const item = params[0]
+      return `${item.name}<br/>${item.value.toLocaleString("zh-CN")} 次`
     },
   },
   xAxis: [
@@ -59,11 +70,10 @@ const option = ref({
       },
       axisLabel: {
         color: "#ffffff",
-        fontSize: 10,
+        fontSize: 9,
         interval: 0,
-        padding: [0, 0, 0, 0],
       },
-      data: ["农产品", "能源", "金属", "化工", "木材"],
+      data: categories,
     },
     {
       axisLine: {
@@ -72,12 +82,18 @@ const option = ref({
           color: "rgba(0,0,0,0)",
         },
       },
-      data: [],
+      axisTick: {
+        show: false,
+      },
+      axisLabel: {
+        show: false,
+      },
+      data: categories,
     },
   ],
   yAxis: {
     type: "value",
-
+    max: axisMax,
     axisLine: {
       show: false,
     },
@@ -101,23 +117,21 @@ const option = ref({
   },
   series: [
     {
-      name: "",
-      data: [100, 120, 150, 110, 100],
+      name: "威胁数量",
+      data: values,
       type: "bar",
       barWidth: 4,
       stack: "b",
       z: 3,
       yAxisIndex: 0,
       showBackground: false,
-      backgroundStyle: {
-        color: "rgba(180, 180, 180, 0.2)",
-      },
       label: {
         show: true,
         position: "top",
-        distance: 15,
+        distance: 10,
         color: "#ffffff",
         fontSize: 10,
+        formatter: ({ value }) => value.toLocaleString("zh-CN"),
       },
       itemStyle: {
         borderRadius: 2,
@@ -131,13 +145,9 @@ const option = ref({
       type: "custom",
       renderItem: (params, api) => {
         const categoryIndex = api.value(0)
-
         const categoryData = api.value(1)
-
         const basicsCoord = api.coord([categoryIndex, categoryData])
-
         const topBasicsYAxis = basicsCoord[1]
-
         const basicsXAxis = basicsCoord[0]
 
         return {
@@ -153,15 +163,14 @@ const option = ref({
         }
       },
       xAxisIndex: 1,
-      data: [100, 120, 150, 110, 100],
+      data: values,
     },
     {
       type: "bar",
-      barWidth: 32,
+      barWidth: 18,
       xAxisIndex: 1,
       barGap: "-220%",
-      data: [150, 150, 150, 150, 150],
-      // 设置高亮样式
+      data: values.map(() => axisMax),
       emphasis: {
         focus: "none",
         itemStyle: { color: "rgba(255,255,255,0.8)" },

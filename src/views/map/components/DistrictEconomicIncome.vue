@@ -1,18 +1,22 @@
 <template>
   <div class="left-card">
-    <m-card title="各区经济收益">
+    <m-card title="重点区域威胁检出">
       <v-chart ref="vChart" :option="option" :autoresize="true" />
     </m-card>
   </div>
 </template>
 <script setup>
-import { ref, onMounted,onBeforeUnmount, nextTick } from "vue"
+import { ref } from "vue"
 import * as echarts from "echarts"
 import mCard from "@/components/mCard/index.vue"
 import VChart from "vue-echarts"
+import { keyRegionThreatDetectionData } from "./mock/securityDashboardMock"
+
+const regionData = keyRegionThreatDetectionData
+
 const option = ref({
   title: {
-    text: "亿元",
+    text: "次",
     left: "5%",
     top: "8%",
     textStyle: {
@@ -39,12 +43,15 @@ const option = ref({
       color: "#ffffff",
       fontSize: 10,
     },
+    formatter: (params) => {
+      const item = params?.[0]
+      return `${item.axisValue}<br/>威胁检出：${item.value.toLocaleString("zh-CN")} 次`
+    },
   },
   color: ["#6BC7F6"],
   xAxis: [
     {
       type: "category",
-
       axisLine: {
         show: false,
         lineStyle: {
@@ -63,7 +70,7 @@ const option = ref({
         interval: 0,
         padding: [0, 0, 0, 0],
       },
-      data: ["南山区", "天河区", "福田区", "龙岗区", "宝安区"],
+      data: regionData.map((item) => item.name),
     },
     {
       axisLine: {
@@ -77,7 +84,6 @@ const option = ref({
   ],
   yAxis: {
     type: "value",
-
     axisLine: {
       show: false,
     },
@@ -94,7 +100,7 @@ const option = ref({
   },
   series: [
     {
-      name: "",
+      name: "威胁检出",
       type: "pictorialBar",
       symbol: "path://M0,10 L10,10 C5.5,10 5.5,5 5,0 C4.5,5 4.5,10 0,10 z",
       label: {
@@ -103,55 +109,23 @@ const option = ref({
         distance: 10,
         color: "#ffffff",
         fontSize: 10,
+        formatter: ({ value }) => value.toLocaleString("zh-CN"),
       },
-
-      data: [
-        {
-          value: 8000,
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "rgba(64, 175, 255, 1)" },
-              { offset: 1, color: "rgba(64, 175, 255, 0.10)" },
-            ]),
-          },
+      data: regionData.map((item, index) => ({
+        value: item.value,
+        itemStyle: {
+          color:
+            index % 2 === 0
+              ? new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: "rgba(64, 175, 255, 1)" },
+                  { offset: 1, color: "rgba(64, 175, 255, 0.10)" },
+                ])
+              : new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                  { offset: 0, color: "rgba(25, 255, 198, 1)" },
+                  { offset: 1, color: "rgba(0, 204, 187, 0.10)" },
+                ]),
         },
-        {
-          value: 7500,
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "rgba(25, 255, 198, 1)" },
-              { offset: 1, color: "rgba(0, 204, 187, 0.10)" },
-            ]),
-          },
-        },
-        {
-          value: 6000,
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "rgba(64, 175, 255, 1)" },
-              { offset: 1, color: "rgba(64, 175, 255, 0.10)" },
-            ]),
-          },
-        },
-        {
-          value: 5800,
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "rgba(25, 255, 198, 1)" },
-              { offset: 1, color: "rgba(0, 204, 187, 0.10)" },
-            ]),
-          },
-        },
-        {
-          value: 5000,
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "rgba(64, 175, 255, 1)" },
-              { offset: 1, color: "rgba(64, 175, 255, 0.10)" },
-            ]),
-          },
-        },
-      ],
+      })),
     },
     {
       name: "",
@@ -160,13 +134,9 @@ const option = ref({
       xAxisIndex: 1,
       renderItem: (params, api) => {
         const categoryIndex = api.value(0)
-
         const categoryData = api.value(1)
-
         const basicsCoord = api.coord([categoryIndex, categoryData])
-
         const topBasicsYAxis = basicsCoord[1]
-
         const basicsXAxis = basicsCoord[0]
         return {
           type: "image",
@@ -180,11 +150,9 @@ const option = ref({
           },
         }
       },
-      data: [8000, 7500, 6000, 5800, 5000],
+      data: regionData.map((item) => item.value),
     },
   ],
 })
-
-
 </script>
 <style lang="scss"></style>
