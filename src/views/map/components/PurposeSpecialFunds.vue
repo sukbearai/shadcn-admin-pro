@@ -17,9 +17,9 @@ const securityCapabilityData = securityCapabilityInvestmentData
 const option = ref({
   grid: {
     left: "5%",
+    right: "8%",
     top: "10%",
-    width: "90%",
-    height: "86%",
+    bottom: "6%",
   },
   legend: {
     show: false,
@@ -42,10 +42,11 @@ const option = ref({
     backgroundColor: "rgba(0,0,0,1)",
     borderWidth: 1,
     borderColor: "#999999",
+    padding: [6, 10],
     textStyle: {
       color: "#ffffff",
       fontSize: 10,
-      lineHeight: 156,
+      lineHeight: 18,
     },
     formatter: (params) => {
       const item = params?.[0]
@@ -156,22 +157,29 @@ const option = ref({
       z: 2,
       label: {
         show: true,
-        position: "middle",
-        padding: [-18, 0, 0, 0],
+        position: "insideLeft",
+        width: 330,
+        offset: [0, -4],
+        padding: [-18, 0, 0, 4],
         color: "#16C1A6",
         fontSize: 12,
-        formatter: "{title|{b}}                                                                              {value|{c}}  {unit|万}",
+        formatter: (params) => `{title|${params.name}}{value|${params.value}}{unit|万}`,
         rich: {
           title: {
             color: "#FFFFFF",
             fontSize: 10,
+            width: 300,
+            align: "left",
           },
           value: {
             fontSize: 10,
+            width: 24,
+            align: "right",
           },
           unit: {
             color: "#717477",
             fontSize: 10,
+            padding: [0, 0, 0, 0],
           },
         },
       },

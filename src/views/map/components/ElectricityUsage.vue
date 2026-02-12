@@ -49,10 +49,11 @@ const option = ref({
     backgroundColor: "rgba(0,0,0,1)",
     borderWidth: 1,
     borderColor: "#999999",
+    padding: [6, 10],
     textStyle: {
       color: "#ffffff",
       fontSize: 10,
-      lineHeight: 156,
+      lineHeight: 18,
     },
   },
   color: ["#6BC7F6", "#44E6A2"],

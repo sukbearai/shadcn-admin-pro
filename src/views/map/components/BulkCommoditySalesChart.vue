@@ -17,6 +17,10 @@ const mockThreatTypeData = threatTypeTop8Data
 const categories = mockThreatTypeData.map((item) => item.type)
 const values = mockThreatTypeData.map((item) => item.count)
 const axisMax = Math.ceil(Math.max(...values) / 50) * 50
+const wrapAxisLabel = (value) => {
+  if (!value) return ""
+  return value.replace(/(.{2})/g, "$1\n").replace(/\n$/, "")
+}
 
 const option = ref({
   title: {
@@ -29,10 +33,10 @@ const option = ref({
     },
   },
   grid: {
-    left: "10%",
+    left: "8%",
+    right: "3%",
     top: "25%",
-    width: "84%",
-    height: "55%",
+    bottom: "18%",
   },
   tooltip: {
     trigger: "axis",
@@ -70,8 +74,11 @@ const option = ref({
       },
       axisLabel: {
         color: "#ffffff",
-        fontSize: 9,
+        fontSize: 8,
+        lineHeight: 10,
+        hideOverlap: false,
         interval: 0,
+        formatter: wrapAxisLabel,
       },
       data: categories,
     },
