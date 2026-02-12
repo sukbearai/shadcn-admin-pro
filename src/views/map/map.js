@@ -124,8 +124,6 @@ export class World extends Mini3d {
     // 省份侧面流光贴图（全局复用，避免重复绑定 tick 导致流速叠加）
     this.sideFlowTexture = null
     this.sideFlowTickHandler = null
-    // 主图镜头快照（进入下钻前记录）
-    this.mainCameraState = null
     // 主图镜头兜底（防止快照丢失）
     this.mainCameraFallbackState = {
       position: new Vector3(-0.17427287762525134, 10.6, 18.6),
@@ -918,13 +916,6 @@ export class World extends Mini3d {
       })
     })
   }
-  getCameraState() {
-    return {
-      position: this.camera.instance.position.clone(),
-      target: this.camera.controls ? this.camera.controls.target.clone() : new Vector3(0, 0, 0),
-    }
-  }
-
   applyCameraState(state, duration = 0.6) {
     if (!state) {
       return
@@ -998,7 +989,6 @@ export class World extends Mini3d {
 
       this.childSceneGroup.add(this.childMap.instance)
       if (isEnterFromMainScene) {
-        this.mainCameraState = this.getCameraState()
         this.setMainMapVisible(false)
       }
       this.currentScene = "childScene"
@@ -1106,8 +1096,7 @@ export class World extends Mini3d {
       this.childMap = null
       this.setMainMapVisible(true)
       this.setReturnButtonVisible(false)
-      this.applyCameraState(this.mainCameraState || this.mainCameraFallbackState, 0.6)
-      this.mainCameraState = null
+      this.applyCameraState(this.mainCameraFallbackState, 0.6)
       this.clicked = false
       return
     }
