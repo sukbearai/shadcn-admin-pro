@@ -45,8 +45,7 @@ import {
 
 import { geoMercator } from "d3-geo"
 import labelIcon from "@/assets/texture/label-icon.png"
-import chinaData from "./map/chinaData"
-import provincesData from "./map/provincesData"
+import marketingCenters, { FLYLINE_CENTER_ID } from "./map/marketingCenters"
 import scatterData from "./map/scatter"
 import infoData from "./map/infoData"
 import gsap from "gsap"
@@ -59,20 +58,23 @@ function sortByValue(data) {
 export class World extends Mini3d {
   constructor(canvas, assets) {
     super(canvas)
-    // 中心坐标（华东业务区域）
-    this.geoProjectionCenter = [119, 29.8]
+    this.marketingCenters = marketingCenters
+    this.flyLineCenterId = FLYLINE_CENTER_ID
+    const flyLineCenter = this.marketingCenters.find((item) => item.id === this.flyLineCenterId) || this.marketingCenters[0]
+    // 中心坐标（营销中心覆盖区域）
+    this.geoProjectionCenter = [106, 35]
     // 缩放比例
-    this.geoProjectionScale = 55
-    // 飞线中心（江苏省）
-    this.flyLineCenter = [118.767413, 32.041544]
+    this.geoProjectionScale = 24
+    // 飞线中心（南京）
+    this.flyLineCenter = [flyLineCenter.lng, flyLineCenter.lat]
     // 业务覆盖省份
-    this.businessProvinceNames = ["安徽省", "江苏省", "上海市", "浙江省", "福建省"]
+    this.businessProvinceNames = [...new Set(this.marketingCenters.map((item) => item.provinceName))]
     // 地图拉伸高度
     this.depth = 0.5
     this.mapFocusLabelInfo = {
-      name: "华东分中心",
-      enName: "EAST CHINA CENTER",
-      center: [118.767413, 23.2],
+      name: "营销中心",
+      enName: "MARKETING CENTER",
+      center: [106, 20],
     }
     // 是否展示焦点省份之外的省份标签
     this.showOtherProvinceLabels = true
@@ -407,8 +409,11 @@ export class World extends Mini3d {
     this.scene.add(mapGroup)
     this.createBar()
   }
+  getMapData(resourceName) {
+    return this.assets.instance.getResource(resourceName)
+  }
   getBusinessProvinceMapData(resourceName) {
-    let mapData = this.assets.instance.getResource(resourceName)
+    let mapData = this.getMapData(resourceName)
     if (!mapData) {
       return mapData
     }
@@ -434,26 +439,28 @@ export class World extends Mini3d {
   }
   createChina() {
     let params = {
-      chinaBgMaterialColor: "#152c47",
-      lineColor: "#3f82cd",
+      chinaBgMaterialColor: "#1a3f5c",
+      lineColor: "#63b8ec",
     }
-    let chinaData = this.getBusinessProvinceMapData("china")
+    let chinaData = this.getMapData("china")
     let chinaBgMaterial = new MeshLambertMaterial({
       color: new Color(params.chinaBgMaterialColor),
       transparent: true,
-      opacity: 1,
+      opacity: 0.88,
     })
     let china = new BaseMap(this, {
       //position: new Vector3(0, 0, -0.03),
       data: chinaData,
       geoProjectionCenter: this.geoProjectionCenter,
       geoProjectionScale: this.geoProjectionScale,
-      merge: true,
+      merge: false,
       material: chinaBgMaterial,
       renderOrder: 2,
     })
     let chinaTopLineMaterial = new LineBasicMaterial({
       color: params.lineColor,
+      transparent: true,
+      opacity: 0.72,
     })
     let chinaTopLine = new Line(this, {
       // position: new Vector3(0, 0, -0.02),
@@ -656,7 +663,7 @@ export class World extends Mini3d {
       return
     }
     let self = this
-    let data = sortByValue(provincesData).filter((item, index) => index < 7)
+    let data = sortByValue([...this.marketingCenters]).filter((item, index) => index < 7)
     const barGroup = new Group()
     this.barGroup = barGroup
     const factor = 0.7
@@ -682,7 +689,7 @@ export class World extends Mini3d {
       const mesh = new Mesh(geo, material)
       mesh.renderOrder = 5
       let areaBar = mesh
-      let [x, y] = this.geoProjection(item.centroid)
+      let [x, y] = this.geoProjection([item.lng, item.lat])
       areaBar.position.set(x, -y, this.depth + 0.45)
       areaBar.scale.set(1, 1, 0)
       areaBar.userData = { ...item }
@@ -917,11 +924,8 @@ export class World extends Mini3d {
     let label3d = this.label3d
     let otherLabel = []
 
-    chinaData.map((province) => {
+    this.marketingCenters.map((province) => {
       if (!this.showOtherProvinceLabels) return false
-      if (!this.businessProvinceNames.includes(province.name)) return false
-      if (province.hide == true) return false
-      if (province.name === this.mapFocusLabelInfo.name) return false
       let label = labelStyle01(province, label3d, labelGroup)
       otherLabel.push(label)
     })
@@ -960,9 +964,9 @@ export class World extends Mini3d {
     this.otherLabel = otherLabel
     function labelStyle01(province, label3d, labelGroup) {
       let label = label3d.create("", `china-label ${province.blur ? " blur" : ""}`, false)
-      const [x, y] = self.geoProjection(province.center)
+      const [x, y] = self.geoProjection([province.lng, province.lat])
       label.init(
-        `<div class="other-label"><img class="label-icon" src="${labelIcon}">${province.name}</div>`,
+        `<div class="other-label"><img class="label-icon" src="${labelIcon}">${province.labelName || province.provinceName}</div>`,
         new Vector3(x, -y, 0.4)
       )
       label3d.setLabelStyle(label, 0.02, "x")
@@ -1083,10 +1087,10 @@ export class World extends Mini3d {
     this.time.on("tick", () => {
       texture.offset.x -= 0.006
     })
-    provincesData
-      .filter((item, index) => index < 7)
+    this.marketingCenters
+      .filter((item) => item.id !== this.flyLineCenterId)
       .map((city) => {
-        let [x, y] = this.geoProjection(city.centroid)
+        let [x, y] = this.geoProjection([city.lng, city.lat])
         let point = new Vector3(x, -y, 0)
         const center = new Vector3()
         center.addVectors(centerPoint, point).multiplyScalar(0.5)
