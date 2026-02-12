@@ -72,6 +72,8 @@ export class World extends Mini3d {
       enName: "JINGSU PROVINCE",
       center: [118.767413, 30.541544],
     }
+    // 是否展示焦点省份之外的省份标签
+    this.showOtherProvinceLabels = false
     // 是否点击
     this.clicked = false
     // 雾
@@ -882,8 +884,11 @@ export class World extends Mini3d {
     let labelGroup = this.labelGroup
     let label3d = this.label3d
     let otherLabel = []
+
     chinaData.map((province) => {
+      if (!this.showOtherProvinceLabels) return false
       if (province.hide == true) return false
+      if (province.name === this.mapFocusLabelInfo.name) return false
       let label = labelStyle01(province, label3d, labelGroup)
       otherLabel.push(label)
     })
