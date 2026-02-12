@@ -117,7 +117,7 @@ body {
         display: flex;
         flex-direction: column;
         // justify-content: space-between;
-        transform: translate3d(0px, 0px, 0px) scaleX(1) scaleY(1) rotateX(0deg) rotateY(6deg) rotateZ(0deg) skewX(0deg)
+        transform: translate3d(0px, 0px, 0px) scaleX(1) scaleY(1) rotateX(0deg) rotateY(0deg) rotateZ(0deg) skewX(0deg)
           skewY(0deg);
         z-index: 4;
         .left-card {
@@ -145,7 +145,7 @@ body {
         display: flex;
         flex-direction: column;
         // justify-content: space-between;
-        transform: translate3d(0px, 0px, 0px) scaleX(1) scaleY(1) rotateX(0deg) rotateY(-6deg) rotateZ(0deg) skewX(0deg)
+        transform: translate3d(0px, 0px, 0px) scaleX(1) scaleY(1) rotateX(0deg) rotateY(0deg) rotateZ(0deg) skewX(0deg)
           skewY(0deg);
         .right-card {
           flex: 1;

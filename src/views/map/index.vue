@@ -3,32 +3,34 @@
     <!-- 地图 -->
     <mapScene ref="mapSceneRef"></mapScene>
     <div class="large-screen-wrap" id="large-screen">
-      <m-header title="数据可视化平台" sub-text="Economic Visualization Platform">
-        <!--左侧 天气 -->
+      <m-header title="网络边界威胁感知" sub-text="Network Boundary Threat Perception">
+        <!--左侧 天气（暂时注释，后续可恢复）
         <template v-slot:left>
           <div class="m-header-weather"><span>小雪</span><span>-4℃</span></div>
         </template>
+        -->
         <!--右侧 日期 -->
         <template v-slot:right>
-          <div class="m-header-date"><span>2025-12-11</span><span>17:53:16</span></div>
+          <div class="m-header-date"><span>{{ state.currentDate }}</span><span>{{ state.currentTime }}</span></div>
         </template>
       </m-header>
       <!-- 顶部菜单 -->
       <div class="top-menu">
         <mMenu :default-active="state.activeIndex" @select="handleMenuSelect">
-          <mMenuItem index="1">经济概览</mMenuItem>
-          <mMenuItem index="2">导航栏</mMenuItem>
-          <mMenuItem index="3">导航栏</mMenuItem>
-          <div class="top-menu-mid-space"></div>
-          <mMenuItem index="4">导航栏</mMenuItem>
-          <mMenuItem index="5">导航栏</mMenuItem>
-          <mMenuItem index="6">导航栏</mMenuItem>
+          <!-- <mMenuItem index="1">经济概览</mMenuItem> -->
+          <!-- <mMenuItem index="2">导航栏</mMenuItem> -->
+          <!-- <mMenuItem index="3">导航栏</mMenuItem> -->
+          <!-- <div class="top-menu-mid-space"></div> -->
+          <!-- <mMenuItem index="4">导航栏</mMenuItem> -->
+          <!-- <mMenuItem index="5">导航栏</mMenuItem> -->
+          <!-- <mMenuItem index="6">导航栏</mMenuItem> -->
         </mMenu>
       </div>
-      <!-- 顶部统计卡片 -->
+      <!-- 顶部统计卡片（暂时注释，后续可恢复）
       <div class="top-count-card">
         <mCountCard v-for="(item, index) in state.totalView" :info="item" :key="index"></mCountCard>
       </div>
+      -->
       <!-- 左边布局 图表 -->
       <div class="left-wrap">
         <div class="left-wrap-3d">
@@ -67,19 +69,16 @@
           path="M1 56.6105C1 31.5123 185.586 10.0503 451.904 1.35519C458.942 1.12543 465.781 4.00883 470.505 9.22964L484.991 25.2383C487.971 28.4775 492.938 30.4201 498.254 30.4201H720.142">
         </mSvglineAnimation>
         <!-- 做箭头 -->
-        <div class="bottom-tray-arrow">
+        <div class="bottom-tray-arrow return-related">
           <img src="@/assets/images/bottom-menu-arrow-big.svg" alt="" />
           <img src="@/assets/images/bottom-menu-arrow-small.svg" alt="" />
         </div>
         <!-- 底部菜单 -->
-        <div class="bottom-menu">
-          <div class="bottom-menu-item is-active"><span>人口概览</span></div>
-          <div class="bottom-menu-item"><span>小标题</span></div>
-          <div class="bottom-menu-item"><span>小标题</span></div>
-          <div class="bottom-menu-item"><span>小标题</span></div>
+        <div class="bottom-menu return-related">
+          <div class="bottom-menu-item is-active return-btn" @click="goBack"><span>返回上一级</span></div>
         </div>
         <!-- 右箭头 -->
-        <div class="bottom-tray-arrow is-reverse">
+        <div class="bottom-tray-arrow is-reverse return-related">
           <img src="@/assets/images/bottom-menu-arrow-big.svg" alt="" />
           <img src="@/assets/images/bottom-menu-arrow-small.svg" alt="" />
         </div>
@@ -141,6 +140,10 @@ const state = reactive({
   progress: 0,
   // 当前顶部导航索引
   activeIndex: "1",
+  // 头部日期
+  currentDate: "",
+  // 头部时间
+  currentTime: "",
   // 卡片统计数据
   totalView: [
     {
@@ -159,7 +162,31 @@ const state = reactive({
     },
   ],
 })
+
+let clockTimer = null
+
+function formatDateTime() {
+  const now = new Date()
+  const formatNum = (num) => String(num).padStart(2, "0")
+
+  return {
+    date: `${now.getFullYear()}-${formatNum(now.getMonth() + 1)}-${formatNum(now.getDate())}`,
+    time: `${formatNum(now.getHours())}:${formatNum(now.getMinutes())}:${formatNum(now.getSeconds())}`,
+  }
+}
+
+function updateHeaderDateTime() {
+  const { date, time } = formatDateTime()
+  state.currentDate = date
+  state.currentTime = time
+}
+
 onMounted(() => {
+  updateHeaderDateTime()
+  clockTimer = setInterval(() => {
+    updateHeaderDateTime()
+  }, 1000)
+
   // 监听地图播放完成，执行事件
   emitter.$on("mapPlayComplete", handleMapPlayComplete)
   // 自动适配
@@ -181,6 +208,10 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   emitter.$off("mapPlayComplete", handleMapPlayComplete)
+  if (clockTimer) {
+    clearInterval(clockTimer)
+    clockTimer = null
+  }
 })
 // 初始化加载资源
 function initAssets(onLoadCallback) {
@@ -232,6 +263,10 @@ async function hideLoading() {
 
 function handleMenuSelect(index) {
   state.activeIndex = index
+}
+
+function goBack() {
+  mapSceneRef.value && mapSceneRef.value.goBack()
 }
 // 地图开始动画播放完成
 function handleMapPlayComplete() {
@@ -295,6 +330,16 @@ function handleMapPlayComplete() {
 
   .top-menu-mid-space {
     width: 800px;
+  }
+}
+
+.bottom-tray {
+  .return-related {
+    display: none !important;
+  }
+
+  .return-related.is-visible {
+    display: flex !important;
   }
 }
 

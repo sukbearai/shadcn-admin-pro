@@ -41,6 +41,8 @@ import {
   GradientShader,
   DiffuseShader,
   Focus,
+  createHistory,
+  getBoundBox,
 } from "@/mini3d"
 
 import { geoMercator } from "d3-geo"
@@ -51,6 +53,7 @@ import infoData from "./map/infoData"
 import gsap from "gsap"
 import emitter from "@/utils/emitter"
 import { InteractionManager } from "three.interactive"
+import { ChildMap } from "./map/childMap"
 function sortByValue(data) {
   data.sort((a, b) => b.value - a.value)
   return data
@@ -82,6 +85,35 @@ export class World extends Mini3d {
     this.showProvinceBars = false
     // 是否点击
     this.clicked = false
+    // 当前场景 mainScene | childScene
+    this.currentScene = "mainScene"
+    // 下钻历史
+    this.history = new createHistory()
+    this.history.push({ name: "中国" })
+    // 子地图对象
+    this.childMap = null
+    // 主场景可见性快照
+    this.mainSceneVisibilityState = null
+    // 返回按钮
+    this.returnBtn = document.querySelector(".return-btn")
+    this.returnRelatedElements = [...document.querySelectorAll(".return-related")]
+    this.setReturnButtonVisible(false)
+    // 省份侧面流光贴图（全局复用，避免重复绑定 tick 导致流速叠加）
+    this.sideFlowTexture = null
+    this.sideFlowTickHandler = null
+    // 主图镜头快照（进入下钻前记录）
+    this.mainCameraState = null
+    // 主图镜头兜底（防止快照丢失）
+    this.mainCameraFallbackState = {
+      position: new Vector3(-0.17427287762525134, 10.6, 18.6),
+      target: new Vector3(0, 0, 0),
+    }
+    // 下钻镜头预设（减小俯视，视角更平）
+    this.childCameraState = {
+      position: new Vector3(-0.35, 13.2, 17.8),
+      target: new Vector3(0, 0, 0),
+    }
+
     // 雾
     this.scene.fog = new Fog(0x102736, 1, 50)
     // 背景
@@ -106,6 +138,9 @@ export class World extends Mini3d {
     this.label3d = new Label3d(this)
     this.labelGroup.rotation.x = -Math.PI / 2
     this.scene.add(this.labelGroup)
+    // 子地图组
+    this.childSceneGroup = new Group()
+    this.scene.add(this.childSceneGroup)
     // 飞线焦点光圈组
     this.flyLineFocusGroup = new Group()
     this.flyLineFocusGroup.visible = false
@@ -158,8 +193,8 @@ export class World extends Mini3d {
     tl.to(this.camera.instance.position, {
       duration: 2,
       x: -0.17427287762525134,
-      y: 13.678992786206543,
-      z: 16.5,
+      y: 10.6,
+      z: 18.6,
       ease: "circ.out",
       onStart: () => {
         this.flyLineFocusGroup.visible = false
@@ -390,6 +425,7 @@ export class World extends Mini3d {
   }
   createMap() {
     let mapGroup = new Group()
+    this.mapRootGroup = mapGroup
     let focusMapGroup = new Group()
     this.focusMapGroup = focusMapGroup
     let { china, chinaTopLine } = this.createChina()
@@ -401,6 +437,10 @@ export class World extends Mini3d {
     map.setParent(focusMapGroup)
     mapTop.setParent(focusMapGroup)
     mapLine.setParent(focusMapGroup)
+
+    let focusMapBoundBox = getBoundBox(map.mapGroup)
+    this.mainMapParentBoxSize = [focusMapBoundBox.boxSize.x, focusMapBoundBox.boxSize.y]
+
     focusMapGroup.position.set(0, 0, -0.01)
     focusMapGroup.scale.set(1, 1, 0)
     mapGroup.add(focusMapGroup)
@@ -436,6 +476,34 @@ export class World extends Mini3d {
       return JSON.stringify(filteredGeoData)
     }
     return filteredGeoData
+  }
+  getBusinessProvinceAnchorMap() {
+    const mapData = this.getBusinessProvinceMapData("mapJson")
+    let geoData = mapData
+
+    if (typeof mapData === "string") {
+      try {
+        geoData = JSON.parse(mapData)
+      } catch (error) {
+        return new Map()
+      }
+    }
+
+    if (!Array.isArray(geoData?.features)) {
+      return new Map()
+    }
+
+    const anchorMap = new Map()
+    geoData.features.forEach((feature) => {
+      const name = feature?.properties?.name
+      const center = feature?.properties?.center
+      const centroid = feature?.properties?.centroid
+      if (name) {
+        anchorMap.set(name, { center, centroid })
+      }
+    })
+
+    return anchorMap
   }
   createChina() {
     let params = {
@@ -473,14 +541,17 @@ export class World extends Mini3d {
     chinaTopLine.lineGroup.position.z += 0.01
     return { china, chinaTopLine }
   }
-  createProvince() {
-    let mapJsonData = this.getBusinessProvinceMapData("mapJson")
+  createProvinceLayer({
+    mapJsonData,
+    geoProjectionCenter = this.geoProjectionCenter,
+    geoProjectionScale = this.geoProjectionScale,
+    mapLineOpacity = 0,
+  }) {
     let [topMaterial, sideMaterial] = this.createProvinceMaterial()
-    this.focusMapTopMaterial = topMaterial
-    this.focusMapSideMaterial = sideMaterial
+
     let map = new ExtrudeMap(this, {
-      geoProjectionCenter: this.geoProjectionCenter,
-      geoProjectionScale: this.geoProjectionScale,
+      geoProjectionCenter,
+      geoProjectionScale,
       position: new Vector3(0, 0, 0.11),
       data: mapJsonData,
       depth: this.depth,
@@ -488,57 +559,89 @@ export class World extends Mini3d {
       sideMaterial: sideMaterial,
       renderOrder: 9,
     })
+
     let faceMaterial = new MeshStandardMaterial({
       color: 0xffffff,
       transparent: true,
       opacity: 0.5,
-      // fog: false,
     })
-    let faceGradientShader = new GradientShader(faceMaterial, {
-      // uColor1: 0x2a6e92,
-      // uColor2: 0x102736,
+    new GradientShader(faceMaterial, {
       uColor1: 0x12bbe0,
       uColor2: 0x0094b5,
     })
-    this.defaultMaterial = faceMaterial
-    this.defaultLightMaterial = this.defaultMaterial.clone()
-    this.defaultLightMaterial.color = new Color("rgba(115,208,255,1)")
-    this.defaultLightMaterial.opacity = 0.8
-    // this.defaultLightMaterial.emissive.setHex(new Color("rgba(115,208,255,1)"));
-    // this.defaultLightMaterial.emissiveIntensity = 3.5;
+
+    let defaultMaterial = faceMaterial
+    let defaultLightMaterial = defaultMaterial.clone()
+    defaultLightMaterial.color = new Color("rgba(115,208,255,1)")
+    defaultLightMaterial.opacity = 0.8
+
     let mapTop = new BaseMap(this, {
-      geoProjectionCenter: this.geoProjectionCenter,
-      geoProjectionScale: this.geoProjectionScale,
+      geoProjectionCenter,
+      geoProjectionScale,
       position: new Vector3(0, 0, this.depth + 0.22),
       data: mapJsonData,
       material: faceMaterial,
       renderOrder: 2,
     })
+
+    let eventMeshes = []
     mapTop.mapGroup.children.map((group) => {
       group.children.map((mesh) => {
         if (mesh.type === "Mesh") {
-          this.eventElement.push(mesh)
+          eventMeshes.push(mesh)
         }
       })
     })
-    this.mapLineMaterial = new LineBasicMaterial({
+
+    let mapLineMaterial = new LineBasicMaterial({
       color: 0xffffff,
-      opacity: 0,
+      opacity: mapLineOpacity,
       transparent: true,
       fog: false,
     })
+
     let mapLine = new Line(this, {
-      geoProjectionCenter: this.geoProjectionCenter,
-      geoProjectionScale: this.geoProjectionScale,
+      geoProjectionCenter,
+      geoProjectionScale,
       data: mapJsonData,
-      material: this.mapLineMaterial,
+      material: mapLineMaterial,
       renderOrder: 3,
     })
     mapLine.lineGroup.position.z += this.depth + 0.23
+
     return {
       map,
       mapTop,
       mapLine,
+      topMaterial,
+      sideMaterial,
+      defaultMaterial,
+      defaultLightMaterial,
+      mapLineMaterial,
+      eventMeshes,
+    }
+  }
+
+  createProvince() {
+    let mapJsonData = this.getBusinessProvinceMapData("mapJson")
+    let provinceLayer = this.createProvinceLayer({
+      mapJsonData,
+      geoProjectionCenter: this.geoProjectionCenter,
+      geoProjectionScale: this.geoProjectionScale,
+      mapLineOpacity: 0,
+    })
+
+    this.focusMapTopMaterial = provinceLayer.topMaterial
+    this.focusMapSideMaterial = provinceLayer.sideMaterial
+    this.defaultMaterial = provinceLayer.defaultMaterial
+    this.defaultLightMaterial = provinceLayer.defaultLightMaterial
+    this.mapLineMaterial = provinceLayer.mapLineMaterial
+    this.eventElement.push(...provinceLayer.eventMeshes)
+
+    return {
+      map: provinceLayer.map,
+      mapTop: provinceLayer.mapTop,
+      mapLine: provinceLayer.mapLine,
     }
   }
   createProvinceMaterial() {
@@ -595,11 +698,16 @@ export class World extends Mini3d {
       `
       )
     }
-    let sideMap = this.assets.instance.getResource("side")
-    sideMap.wrapS = RepeatWrapping
-    sideMap.wrapT = RepeatWrapping
-    sideMap.repeat.set(1, 1.5)
-    sideMap.offset.y += 0.065
+    let sideMap = this.sideFlowTexture
+    if (!sideMap) {
+      sideMap = this.assets.instance.getResource("side").clone()
+      sideMap.needsUpdate = true
+      sideMap.wrapS = RepeatWrapping
+      sideMap.wrapT = RepeatWrapping
+      sideMap.repeat.set(1, 1.5)
+      sideMap.offset.y += 0.065
+      this.sideFlowTexture = sideMap
+    }
     let sideMaterial = new MeshStandardMaterial({
       color: 0xffffff,
       map: sideMap,
@@ -607,9 +715,14 @@ export class World extends Mini3d {
       opacity: 0,
       side: DoubleSide,
     })
-    this.time.on("tick", () => {
-      sideMap.offset.y += 0.005
-    })
+    if (!this.sideFlowTickHandler) {
+      this.sideFlowTickHandler = () => {
+        if (this.sideFlowTexture) {
+          this.sideFlowTexture.offset.y += 0.005
+        }
+      }
+      this.time.on("tick", this.sideFlowTickHandler)
+    }
     sideMaterial.onBeforeCompile = (shader) => {
       shader.uniforms = {
         ...shader.uniforms,
@@ -743,12 +856,27 @@ export class World extends Mini3d {
     }
     this.eventElement.map((mesh) => {
       this.interactionManager.add(mesh)
-      mesh.addEventListener("mousedown", (ev) => {
-        console.log(ev.target.userData.name)
+      mesh.addEventListener("mousedown", (event) => {
+        if (this.clicked || this.currentScene !== "mainScene") return false
+        this.clicked = true
+        let userData = event.target.parent.userData
+        if (!userData?.adcode || !userData?.childrenNum) {
+          this.clicked = false
+          return false
+        }
+
+        this.history.push(userData)
+        this.loadChildMap(userData)
+      })
+      mesh.addEventListener("mouseup", () => {
+        this.clicked = false
       })
       mesh.addEventListener("mouseover", (event) => {
         if (!objectsHover.includes(event.target.parent)) {
           objectsHover.push(event.target.parent)
+        }
+        if (this.currentScene !== "mainScene") {
+          return false
         }
         document.body.style.cursor = "pointer"
         move(event.target.parent)
@@ -763,6 +891,219 @@ export class World extends Mini3d {
       })
     })
   }
+  getCameraState() {
+    return {
+      position: this.camera.instance.position.clone(),
+      target: this.camera.controls ? this.camera.controls.target.clone() : new Vector3(0, 0, 0),
+    }
+  }
+
+  applyCameraState(state, duration = 0.6) {
+    if (!state) {
+      return
+    }
+
+    const { position, target = new Vector3(0, 0, 0) } = state
+    gsap.killTweensOf(this.camera.instance.position)
+    if (this.camera.controls) {
+      gsap.killTweensOf(this.camera.controls.target)
+    }
+
+    gsap.to(this.camera.instance.position, {
+      duration,
+      x: position.x,
+      y: position.y,
+      z: position.z,
+      ease: "power2.out",
+    })
+
+    if (this.camera.controls) {
+      gsap.to(this.camera.controls.target, {
+        duration,
+        x: target.x,
+        y: target.y,
+        z: target.z,
+        ease: "power2.out",
+        onUpdate: () => {
+          this.camera.controls.update()
+        },
+      })
+    }
+  }
+
+  getChildCameraState() {
+    const boxSize = this.childMap?.boundBox?.boxSize
+    const maxSize = boxSize ? Math.max(boxSize.x, boxSize.y) : 12
+
+    return {
+      position: new Vector3(
+        this.childCameraState.position.x,
+        Math.max(this.childCameraState.position.y, maxSize * 0.65),
+        Math.max(this.childCameraState.position.z, maxSize * 1.05)
+      ),
+      target: this.childCameraState.target.clone(),
+    }
+  }
+
+  loadChildMap(userData) {
+    if (!userData?.adcode) {
+      this.clicked = false
+      return
+    }
+
+    const isEnterFromMainScene = this.currentScene === "mainScene"
+
+    this.getChildMapData(userData, (data) => {
+      if (!data) {
+        this.clicked = false
+        return
+      }
+
+      this.childMap && this.childMap.destroy()
+      this.childMap = new ChildMap(this, {
+        adcode: userData.adcode,
+        center: userData.center || userData.centroid,
+        centroid: userData.centroid || userData.center,
+        childrenNum: userData.childrenNum,
+        mapData: data,
+        parentBoxSize: this.mainMapParentBoxSize || [20, 20],
+      })
+
+      this.childSceneGroup.add(this.childMap.instance)
+      if (isEnterFromMainScene) {
+        this.mainCameraState = this.getCameraState()
+        this.setMainMapVisible(false)
+      }
+      this.currentScene = "childScene"
+      this.setReturnButtonVisible(true)
+      this.applyCameraState(this.getChildCameraState(), 0.6)
+      this.clicked = false
+    })
+  }
+
+  getChildMapData(userData, callback) {
+    let url = `https://geo.datav.aliyun.com/areas_v3/bound/${userData.adcode}_full.json`
+
+    if (userData.childrenNum === 0) {
+      url = `https://geo.datav.aliyun.com/areas_v3/bound/${userData.adcode}.json`
+    }
+
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`地图数据加载失败: ${res.status}`)
+        }
+        return res.text()
+      })
+      .then((res) => {
+        callback && callback(res)
+      })
+      .catch((error) => {
+        console.warn(error)
+        this.clicked = false
+      })
+  }
+
+  setMainLabelElementsVisible(visible) {
+    const labels = [...(this.otherLabel || []), ...(this.allProvinceLabel || [])]
+    labels.forEach((label) => {
+      if (!label?.element) {
+        return
+      }
+      if (visible) {
+        label.show ? label.show() : (label.element.style.visibility = "visible")
+      } else {
+        label.hide ? label.hide() : (label.element.style.visibility = "hidden")
+      }
+    })
+  }
+
+  setMainMapVisible(bool) {
+    if (bool === false && !this.mainSceneVisibilityState) {
+      this.mainSceneVisibilityState = {
+        mapRootGroup: this.mapRootGroup ? this.mapRootGroup.visible : true,
+        labelGroup: this.labelGroup ? this.labelGroup.visible : true,
+        flyLineGroup: this.flyLineGroup ? this.flyLineGroup.visible : false,
+        flyLineFocusGroup: this.flyLineFocusGroup ? this.flyLineFocusGroup.visible : false,
+        barGroup: this.barGroup ? this.barGroup.visible : false,
+        scatterGroup: this.scatterGroup ? this.scatterGroup.visible : false,
+        particleGroup: this.particleGroup ? this.particleGroup.visible : false,
+        rotateBorder1: this.rotateBorder1 ? this.rotateBorder1.visible : false,
+        rotateBorder2: this.rotateBorder2 ? this.rotateBorder2.visible : false,
+      }
+    }
+
+    if (this.mapRootGroup) {
+      this.mapRootGroup.visible = bool
+    }
+    if (this.labelGroup) {
+      this.labelGroup.visible = bool ? this.mainSceneVisibilityState?.labelGroup ?? true : false
+    }
+    if (this.flyLineGroup) {
+      this.flyLineGroup.visible = bool ? this.mainSceneVisibilityState?.flyLineGroup ?? false : false
+    }
+    if (this.flyLineFocusGroup) {
+      this.flyLineFocusGroup.visible = bool ? this.mainSceneVisibilityState?.flyLineFocusGroup ?? false : false
+    }
+    if (this.barGroup) {
+      this.barGroup.visible = bool ? this.mainSceneVisibilityState?.barGroup ?? false : false
+    }
+    if (this.scatterGroup) {
+      this.scatterGroup.visible = bool ? this.mainSceneVisibilityState?.scatterGroup ?? false : false
+    }
+    if (this.particleGroup) {
+      this.particleGroup.visible = bool ? this.mainSceneVisibilityState?.particleGroup ?? false : false
+    }
+    if (this.rotateBorder1) {
+      this.rotateBorder1.visible = bool ? this.mainSceneVisibilityState?.rotateBorder1 ?? false : false
+    }
+    if (this.rotateBorder2) {
+      this.rotateBorder2.visible = bool ? this.mainSceneVisibilityState?.rotateBorder2 ?? false : false
+    }
+    this.setMainLabelElementsVisible(this.labelGroup ? this.labelGroup.visible : bool)
+    if (bool === true) {
+      this.mainSceneVisibilityState = null
+    }
+  }
+
+  goBack() {
+    if (this.currentScene !== "childScene") {
+      return
+    }
+
+    this.history.undo()
+
+    if (!this.history.getIndex()) {
+      this.currentScene = "mainScene"
+      this.childMap && this.childMap.destroy()
+      this.childMap = null
+      this.setMainMapVisible(true)
+      this.setReturnButtonVisible(false)
+      this.applyCameraState(this.mainCameraState || this.mainCameraFallbackState, 0.6)
+      this.mainCameraState = null
+      this.clicked = false
+      return
+    }
+
+    let userData = this.history.present
+    this.loadChildMap(userData)
+  }
+
+  setReturnButtonVisible(visible) {
+    if (this.returnBtn) {
+      this.returnBtn.style.display = visible ? "block" : "none"
+    }
+
+    if (Array.isArray(this.returnRelatedElements)) {
+      this.returnRelatedElements.forEach((element) => {
+        if (!element) {
+          return
+        }
+        element.classList.toggle("is-visible", visible)
+      })
+    }
+  }
+
   createHUIGUANG(h, color) {
     let geometry = new PlaneGeometry(0.35, h)
     geometry.translate(0, h / 2, 0)
@@ -923,10 +1264,26 @@ export class World extends Mini3d {
     let labelGroup = this.labelGroup
     let label3d = this.label3d
     let otherLabel = []
+    const provinceAnchorMap = this.getBusinessProvinceAnchorMap()
 
     this.marketingCenters.map((province) => {
       if (!this.showOtherProvinceLabels) return false
-      let label = labelStyle01(province, label3d, labelGroup)
+      const provinceAnchor = provinceAnchorMap.get(province.provinceName)
+      const labelCenter =
+        provinceAnchor?.center?.length === 2
+          ? provinceAnchor.center
+          : provinceAnchor?.centroid?.length === 2
+            ? provinceAnchor.centroid
+            : [province.lng, province.lat]
+
+      let label = labelStyle01(
+        {
+          ...province,
+          labelCenter,
+        },
+        label3d,
+        labelGroup
+      )
       otherLabel.push(label)
     })
     let mapFocusLabel = labelStyle02(
@@ -964,7 +1321,7 @@ export class World extends Mini3d {
     this.otherLabel = otherLabel
     function labelStyle01(province, label3d, labelGroup) {
       let label = label3d.create("", `china-label ${province.blur ? " blur" : ""}`, false)
-      const [x, y] = self.geoProjection([province.lng, province.lat])
+      const [x, y] = self.geoProjection(province.labelCenter)
       label.init(
         `<div class="other-label"><img class="label-icon" src="${labelIcon}">${province.labelName || province.provinceName}</div>`,
         new Vector3(x, -y, 0.4)
@@ -1309,6 +1666,10 @@ export class World extends Mini3d {
   }
   destroy() {
     super.destroy()
+    this.childMap && this.childMap.destroy()
+    this.childMap = null
     this.label3d && this.label3d.destroy()
+    this.setReturnButtonVisible(false)
+    document.body.style.cursor = "default"
   }
 }

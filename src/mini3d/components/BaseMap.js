@@ -51,9 +51,10 @@ export class BaseMap {
     mapData.features.forEach((feature) => {
       const group = new Object3D()
 
-      let { name, center = [], centroid = [] } = feature.properties
-      this.coordinates.push({ name, center, centroid })
-      group.userData.name = name
+      let { name, center = [], centroid = [], adcode, childrenNum = 0 } = feature.properties
+      const finalCentroid = centroid || center
+      this.coordinates.push({ name, center, centroid: finalCentroid, adcode, childrenNum })
+      group.userData = { name, center, centroid: finalCentroid, adcode, childrenNum }
       feature.geometry.coordinates.forEach((multiPolygon) => {
         multiPolygon.forEach((polygon) => {
           const shape = new Shape()
@@ -74,7 +75,13 @@ export class BaseMap {
           } else {
             const mesh = new Mesh(geometry, this.config.material)
             mesh.renderOrder = this.config.renderOrder
-            mesh.userData.name = name
+            mesh.userData = {
+              name,
+              center,
+              centroid: finalCentroid,
+              adcode,
+              childrenNum,
+            }
             group.add(mesh)
           }
         })

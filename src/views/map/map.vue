@@ -19,6 +19,9 @@ function loadMap(assets) {
   canvasMap.value = new World(document.getElementById("canvasMap"), assets);
   canvasMap.value.time.pause();
 }
+function goBack() {
+  canvasMap.value && canvasMap.value.goBack();
+}
 async function play() {
   canvasMap.value.time.resume();
   canvasMap.value.animateTl.timeScale(1); // 设置播放速度正常
@@ -27,6 +30,7 @@ async function play() {
 defineExpose({
   loadMap,
   play,
+  goBack,
   canvasMap,
 });
 </script>
@@ -171,7 +175,6 @@ defineExpose({
       }
     }
   }
-
   .china-label {
     color: #fff;
 
