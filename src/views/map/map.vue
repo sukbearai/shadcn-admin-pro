@@ -129,35 +129,35 @@ defineExpose({
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 18px;
-      width: 200px;
-      height: 53px;
+      padding: 0 20px;
+      width: 240px;
+      height: 66px;
       border-radius: 30px 30px 30px 0px;
       background: rgba(0, 0, 0, 0.4);
     }
     .number {
       color: #fff;
-      font-size: 30px;
+      font-size: 34px;
       font-weight: 700;
 
       .unit {
         color: #fff;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 400;
         opacity: 0.5;
-        padding-left: 5px;
+        padding-left: 7px;
       }
     }
     .name {
       color: #fff;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 700;
       span {
         display: block;
       }
       .en {
         color: #fff;
-        font-size: 10px;
+        font-size: 12px;
         opacity: 0.5;
         font-weight: 700;
       }
@@ -165,7 +165,7 @@ defineExpose({
     .no {
       color: #7efbf6;
       text-shadow: 0 0 5px #7efbf6, 0 0 10px #7efbf6;
-      font-size: 30px;
+      font-size: 34px;
       font-weight: 700;
     }
     .yellow {

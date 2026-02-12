@@ -58,6 +58,27 @@ function sortByValue(data) {
   data.sort((a, b) => b.value - a.value)
   return data
 }
+
+const integerFormatter = new Intl.NumberFormat("zh-CN", {
+  maximumFractionDigits: 0,
+})
+
+function toNumber(value, defaultValue = 0) {
+  const numeric =
+    typeof value === "number"
+      ? value
+      : Number(
+          `${value ?? ""}`
+            .trim()
+            .replace(/,/g, "")
+        )
+  return Number.isFinite(numeric) ? numeric : defaultValue
+}
+
+function formatInteger(value) {
+  return integerFormatter.format(Math.round(toNumber(value, 0)))
+}
+
 export class World extends Mini3d {
   constructor(canvas, assets) {
     super(canvas)
@@ -75,14 +96,16 @@ export class World extends Mini3d {
     // 地图拉伸高度
     this.depth = 0.5
     this.mapFocusLabelInfo = {
-      name: "营销中心",
-      enName: "MARKETING CENTER",
+      name: "全国分布中心",
+      enName: "NATIONAL DISTRIBUTION CENTER",
       center: [106, 20],
     }
     // 是否展示焦点省份之外的省份标签
     this.showOtherProvinceLabels = true
     // 是否展示柱状图
-    this.showProvinceBars = false
+    this.showProvinceBars = true
+    // 柱状图展示的营销中心（当前仅北京市）
+    this.provinceBarCenterIds = ["beijing"]
     // 是否点击
     this.clicked = false
     // 当前场景 mainScene | childScene
@@ -334,7 +357,7 @@ export class World extends Mini3d {
     this.allProvinceLabel.map((item, index) => {
       let element = item.element.querySelector(".provinces-label-wrap")
       let number = item.element.querySelector(".number .value")
-      let numberVal = Number(number.innerText)
+      let numberVal = toNumber(number?.dataset?.value, toNumber(number.innerText))
       let numberAnimate = {
         score: 0,
       }
@@ -360,7 +383,7 @@ export class World extends Mini3d {
         "bar"
       )
       function showScore() {
-        number.innerText = numberAnimate.score.toFixed(0)
+        number.innerText = formatInteger(numberAnimate.score)
       }
     })
     this.allGuangquan.map((item, index) => {
@@ -776,7 +799,10 @@ export class World extends Mini3d {
       return
     }
     let self = this
-    let data = sortByValue([...this.marketingCenters]).filter((item, index) => index < 7)
+    let data = sortByValue([...this.marketingCenters]).filter((item) => this.provinceBarCenterIds.includes(item.id))
+    if (!data.length) {
+      return
+    }
     const barGroup = new Group()
     this.barGroup = barGroup
     const factor = 0.7
@@ -820,10 +846,11 @@ export class World extends Mini3d {
     this.scene.add(barGroup)
     function labelStyle04(data, index, position) {
       let label = self.label3d.create("", "provinces-label", false)
+      const maliciousCodeCount = toNumber(data.maliciousCodeCount, 500000)
       label.init(
         `<div class="provinces-label ${index > 4 ? "yellow" : ""}">
       <div class="provinces-label-wrap">
-        <div class="number"><span class="value">${data.value}</span><span class="unit">万人</span></div>
+        <div class="number"><span class="value" data-value="${maliciousCodeCount}">${formatInteger(maliciousCodeCount)}</span><span class="unit">检测恶意代码数</span></div>
         <div class="name">
           <span class="zh">${data.name}</span>
           <span class="en">${data.enName.toUpperCase()}</span>
@@ -833,7 +860,7 @@ export class World extends Mini3d {
     </div>`,
         position
       )
-      self.label3d.setLabelStyle(label, 0.01, "x")
+      self.label3d.setLabelStyle(label, 0.013, "x")
       label.setParent(self.labelGroup)
       return label
     }
