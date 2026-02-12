@@ -6,12 +6,11 @@ const router = createRouter({
   routes: [
     {
       path: "/",
-      redirect: "/map",
       component: map,
     },
     {
       path: "/map",
-      component: map,
+      redirect: "/",
     },
 
     {
