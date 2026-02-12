@@ -59,21 +59,25 @@ function sortByValue(data) {
 export class World extends Mini3d {
   constructor(canvas, assets) {
     super(canvas)
-    // 中心坐标
-    this.geoProjectionCenter = [118.767413, 32.041544]
+    // 中心坐标（华东业务区域）
+    this.geoProjectionCenter = [119, 29.8]
     // 缩放比例
-    this.geoProjectionScale = 160
-    // 飞线中心
+    this.geoProjectionScale = 55
+    // 飞线中心（江苏省）
     this.flyLineCenter = [118.767413, 32.041544]
+    // 业务覆盖省份
+    this.businessProvinceNames = ["安徽省", "江苏省", "上海市", "浙江省", "福建省"]
     // 地图拉伸高度
     this.depth = 0.5
     this.mapFocusLabelInfo = {
-      name: "江苏省",
-      enName: "JINGSU PROVINCE",
-      center: [118.767413, 30.541544],
+      name: "华东分中心",
+      enName: "EAST CHINA CENTER",
+      center: [118.767413, 23.2],
     }
     // 是否展示焦点省份之外的省份标签
-    this.showOtherProvinceLabels = false
+    this.showOtherProvinceLabels = true
+    // 是否展示柱状图
+    this.showProvinceBars = false
     // 是否点击
     this.clicked = false
     // 雾
@@ -82,7 +86,7 @@ export class World extends Mini3d {
     this.scene.background = new Color(0x102736)
 
     // 相机初始位置
-    this.camera.instance.position.set(-13.767695123014105, 12.990152163077308, 39.28228164159694)
+    this.camera.instance.position.set(-13.767695123014105, 12.990152163077308, 31.5)
     this.camera.instance.near = 1
     this.camera.instance.far = 10000
     this.camera.instance.updateProjectionMatrix()
@@ -133,8 +137,8 @@ export class World extends Mini3d {
     this.createParticles()
     // 创建散点图
     this.createScatter()
-    // 创建信息点
-    this.createInfoPoint()
+    // 创建信息点（先注释停用）
+    // this.createInfoPoint()
     // 创建轮廓
     this.createStorke()
     // this.time.on("tick", () => {
@@ -153,7 +157,7 @@ export class World extends Mini3d {
       duration: 2,
       x: -0.17427287762525134,
       y: 13.678992786206543,
-      z: 20.688611202093714,
+      z: 16.5,
       ease: "circ.out",
       onStart: () => {
         this.flyLineFocusGroup.visible = false
@@ -180,9 +184,9 @@ export class World extends Mini3d {
         ease: "circ.out",
         onComplete: () => {
           this.flyLineGroup.visible = true
-          this.scatterGroup.visible = true
-          this.InfoPointGroup.visible = true
-          this.createInfoPointLabelLoop()
+          // this.scatterGroup.visible = true // 关闭三角散点层
+          // this.InfoPointGroup.visible = true
+          // this.createInfoPointLabelLoop()
         },
       },
       "focusMap"
@@ -403,12 +407,37 @@ export class World extends Mini3d {
     this.scene.add(mapGroup)
     this.createBar()
   }
+  getBusinessProvinceMapData(resourceName) {
+    let mapData = this.assets.instance.getResource(resourceName)
+    if (!mapData) {
+      return mapData
+    }
+    let geoData = mapData
+    if (typeof mapData === "string") {
+      try {
+        geoData = JSON.parse(mapData)
+      } catch (error) {
+        return mapData
+      }
+    }
+    if (!Array.isArray(geoData.features)) {
+      return mapData
+    }
+    const filteredGeoData = {
+      ...geoData,
+      features: geoData.features.filter((feature) => this.businessProvinceNames.includes(feature?.properties?.name)),
+    }
+    if (typeof mapData === "string") {
+      return JSON.stringify(filteredGeoData)
+    }
+    return filteredGeoData
+  }
   createChina() {
     let params = {
       chinaBgMaterialColor: "#152c47",
       lineColor: "#3f82cd",
     }
-    let chinaData = this.assets.instance.getResource("china")
+    let chinaData = this.getBusinessProvinceMapData("china")
     let chinaBgMaterial = new MeshLambertMaterial({
       color: new Color(params.chinaBgMaterialColor),
       transparent: true,
@@ -438,7 +467,7 @@ export class World extends Mini3d {
     return { china, chinaTopLine }
   }
   createProvince() {
-    let mapJsonData = this.assets.instance.getResource("mapJson")
+    let mapJsonData = this.getBusinessProvinceMapData("mapJson")
     let [topMaterial, sideMaterial] = this.createProvinceMaterial()
     this.focusMapTopMaterial = topMaterial
     this.focusMapSideMaterial = sideMaterial
@@ -619,6 +648,13 @@ export class World extends Mini3d {
     return [topMaterial, sideMaterial]
   }
   createBar() {
+    this.allBar = []
+    this.allBarMaterial = []
+    this.allGuangquan = []
+    this.allProvinceLabel = []
+    if (!this.showProvinceBars) {
+      return
+    }
     let self = this
     let data = sortByValue(provincesData).filter((item, index) => index < 7)
     const barGroup = new Group()
@@ -626,10 +662,6 @@ export class World extends Mini3d {
     const factor = 0.7
     const height = 4.0 * factor
     const max = data[0].value
-    this.allBar = []
-    this.allBarMaterial = []
-    this.allGuangquan = []
-    this.allProvinceLabel = []
     data.map((item, index) => {
       let geoHeight = height * (item.value / max)
       let material = new MeshBasicMaterial({
@@ -887,6 +919,7 @@ export class World extends Mini3d {
 
     chinaData.map((province) => {
       if (!this.showOtherProvinceLabels) return false
+      if (!this.businessProvinceNames.includes(province.name)) return false
       if (province.hide == true) return false
       if (province.name === this.mapFocusLabelInfo.name) return false
       let label = labelStyle01(province, label3d, labelGroup)
@@ -1233,7 +1266,7 @@ export class World extends Mini3d {
     }, 3000)
   }
   createStorke() {
-    const mapStroke = this.assets.instance.getResource("mapStroke")
+    const mapStroke = this.getBusinessProvinceMapData("mapStroke")
     const texture = this.assets.instance.getResource("pathLine3")
     texture.wrapS = texture.wrapT = RepeatWrapping
     texture.repeat.set(2, 1)

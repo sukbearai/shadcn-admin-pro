@@ -49,12 +49,12 @@ export class Assets {
       {
         type: "File",
         name: "mapJson",
-        path: base_url + "assets/json/江苏省.json",
+        path: base_url + "assets/json/中华人民共和国.json",
       },
       {
         type: "File",
         name: "mapStroke",
-        path: base_url + "assets/json/江苏省-轮廓.json",
+        path: base_url + "assets/json/中华人民共和国.json",
       },
 
       { type: "Texture", name: "huiguang", path: huiguang },
