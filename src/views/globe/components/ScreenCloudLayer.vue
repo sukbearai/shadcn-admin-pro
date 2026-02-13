@@ -36,6 +36,9 @@ const CLOUD_SIZE_W = CLOUD_SETTINGS.size.width
 const CLOUD_SIZE_H = CLOUD_SETTINGS.size.height
 const CLOUD_SPEED = CLOUD_SETTINGS.speed
 const CLOUD_DISTRIBUTION = CLOUD_SETTINGS.horizontalDistribution || {}
+const CLOUD_LAYER_OFFSET = CLOUD_SETTINGS.layerOffsetY || {}
+const CLOUD_IDLE_OFFSET_Y = Number(CLOUD_LAYER_OFFSET.idle ?? 0)
+const CLOUD_INTRO_OFFSET_Y = Number(CLOUD_LAYER_OFFSET.intro ?? 0)
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -44,6 +47,12 @@ function clamp(value, min, max) {
 function resetCloudMotion() {
   lastFrameTime = performance.now()
   cloudTravelOffset = 0
+}
+
+function applyLayerOffset() {
+  if (!layerRef.value) return
+  const offsetY = introActive ? CLOUD_INTRO_OFFSET_Y : CLOUD_IDLE_OFFSET_Y
+  layerRef.value.style.transform = offsetY ? `translate3d(0, ${offsetY}px, 0)` : "translate3d(0, 0, 0)"
 }
 
 function resolveCloudX() {
@@ -204,6 +213,7 @@ function init() {
   texture = new THREE.TextureLoader().load(cloudTextureUrl)
   material = createCloudMaterial(fog)
   setupCloudMesh()
+  applyLayerOffset()
 
   resetCloudMotion()
   animate()
@@ -234,6 +244,9 @@ function destroy() {
   introActive = false
   introProgress = 0
   layerVisible = false
+  if (layerRef.value) {
+    layerRef.value.style.transform = ""
+  }
 }
 
 function setIntroActive(active) {
@@ -245,6 +258,7 @@ function setIntroActive(active) {
   if (!introActive) {
     introProgress = 0
   }
+  applyLayerOffset()
 }
 
 function setIntroProgress(progress) {
@@ -258,6 +272,7 @@ function setLayerVisible(visible) {
 function resetIntro() {
   introActive = false
   introProgress = 0
+  applyLayerOffset()
   resetCloudMotion()
 }
 
@@ -265,6 +280,7 @@ function stopAndHide() {
   introActive = false
   introProgress = 0
   layerVisible = false
+  applyLayerOffset()
   resetCloudMotion()
   if (material?.uniforms?.opacity) {
     material.uniforms.opacity.value = 0

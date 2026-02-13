@@ -156,6 +156,10 @@ const introTransitionConfig = {
     count: 1000,
     zStep: 15,
     startZOffset: 680,
+    layerOffsetY: {
+      idle: 120,
+      intro: 0,
+    },
     rangeX: 320,
     rangeY: 240,
     baseY: -95,

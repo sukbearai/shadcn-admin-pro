@@ -77,6 +77,13 @@
             @click="toggleView">
             <span>{{ globeViewConfig.bottomTray.switchViewLabel }}</span>
           </div>
+          <div v-if="state.showEarthIntro" class="bottom-menu-item is-active cloud-toggle-btn" @click="toggleCloudLayer">
+            <span>{{
+              state.cloudIdleVisible
+                ? globeViewConfig.bottomTray.cloudOffLabel
+                : globeViewConfig.bottomTray.cloudOnLabel
+            }}</span>
+          </div>
           <div class="bottom-menu-item is-active return-btn return-related" @click="goBack">
             <span>{{ globeViewConfig.bottomTray.returnLabel }}</span>
           </div>
@@ -162,6 +169,8 @@ const state = reactive({
   hasStartedMapTransition: false,
   // 视图切换中
   isViewSwitching: false,
+  // 是否展示 idle 云层
+  cloudIdleVisible: CLOUD_TRANSITION_SETTINGS.idleVisible !== false,
   // 当前顶部导航索引
   activeIndex: globeViewConfig.menu.defaultActiveIndex || globeViewConfig.menu.items[0]?.index || "1",
   // 头部日期
@@ -353,7 +362,7 @@ function isCloudEnabled() {
 }
 
 function isCloudIdleVisible() {
-  return isCloudEnabled() && CLOUD_TRANSITION_SETTINGS.idleVisible !== false
+  return isCloudEnabled() && state.cloudIdleVisible
 }
 
 onMounted(() => {
@@ -462,6 +471,19 @@ function handleMenuSelect(index) {
 
 function goBack() {
   mapSceneRef.value && mapSceneRef.value.goBack()
+}
+function toggleCloudLayer() {
+  state.cloudIdleVisible = !state.cloudIdleVisible
+  if (!state.showEarthIntro) {
+    return
+  }
+  if (isCloudIdleVisible()) {
+    screenCloudLayerRef.value?.setIntroActive?.(false)
+    screenCloudLayerRef.value?.setIntroProgress?.(0)
+    screenCloudLayerRef.value?.setLayerVisible?.(true)
+    return
+  }
+  screenCloudLayerRef.value?.stopAndHide?.()
 }
 
 async function toggleView() {
@@ -636,6 +658,7 @@ function handleMapPlayComplete() {
   }
 
   .switch-view-btn,
+  .cloud-toggle-btn,
   .return-btn {
     width: 120px;
 

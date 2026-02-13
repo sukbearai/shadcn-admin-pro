@@ -58,6 +58,8 @@ const globeViewConfig = {
   bottomTray: {
     switchViewLabel: "切换地图",
     returnLabel: "返回上级",
+    cloudOnLabel: "开启云层",
+    cloudOffLabel: "关闭云层",
   },
 }
 
