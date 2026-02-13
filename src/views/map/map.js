@@ -83,40 +83,104 @@ function resolveChildMapSuffix(childrenNum) {
   return childrenNum === 0 ? ".json" : "_full.json"
 }
 
+function resolveVector3State(value, fallback) {
+  if (value instanceof Vector3) {
+    return value.clone()
+  }
+  if (Array.isArray(value) && value.length === 3) {
+    return new Vector3(toNumber(value[0], fallback.x), toNumber(value[1], fallback.y), toNumber(value[2], fallback.z))
+  }
+  if (value && typeof value === "object") {
+    return new Vector3(
+      toNumber(value.x, fallback.x),
+      toNumber(value.y, fallback.y),
+      toNumber(value.z, fallback.z)
+    )
+  }
+  return fallback.clone()
+}
+
 export class World extends Mini3d {
-  constructor(canvas, assets) {
+  constructor(canvas, assets, options = {}) {
     super(canvas)
-    this.marketingCenters = marketingCenters
-    this.flyLineCenterId = FLYLINE_CENTER_ID
-    const flyLineCenter = this.marketingCenters.find((item) => item.id === this.flyLineCenterId) || this.marketingCenters[0]
+    const defaultGeoProjectionCenter = [106, 35]
+    const resolvedMarketingCenters =
+      Array.isArray(options.marketingCenters) && options.marketingCenters.length ? options.marketingCenters : marketingCenters
+    this.resourceNames = {
+      china: "china",
+      mapJson: "mapJson",
+      mapStroke: "mapStroke",
+      ...(options.resourceNames || {}),
+    }
+
+    this.marketingCenters = resolvedMarketingCenters
+    this.flyLineCenterId = options.flyLineCenterId || FLYLINE_CENTER_ID
+    const flyLineCenter =
+      this.marketingCenters.find((item) => item.id === this.flyLineCenterId) ||
+      this.marketingCenters[0] || {
+        lng: defaultGeoProjectionCenter[0],
+        lat: defaultGeoProjectionCenter[1],
+      }
     // 中心坐标（营销中心覆盖区域）
-    this.geoProjectionCenter = [106, 35]
+    this.geoProjectionCenter =
+      Array.isArray(options.geoProjectionCenter) && options.geoProjectionCenter.length === 2
+        ? options.geoProjectionCenter
+        : defaultGeoProjectionCenter
     // 缩放比例
-    this.geoProjectionScale = 24
+    this.geoProjectionScale = typeof options.geoProjectionScale === "number" ? options.geoProjectionScale : 24
     // 飞线中心（南京）
-    this.flyLineCenter = [flyLineCenter.lng, flyLineCenter.lat]
+    this.flyLineCenter = [
+      toNumber(flyLineCenter.lng, this.geoProjectionCenter[0]),
+      toNumber(flyLineCenter.lat, this.geoProjectionCenter[1]),
+    ]
     // 业务覆盖省份
-    this.businessProvinceNames = [...new Set(this.marketingCenters.map((item) => item.provinceName))]
+    const defaultBusinessProvinceNames = [...new Set(this.marketingCenters.map((item) => item.provinceName).filter(Boolean))]
+    const configuredBusinessProvinceNames = Array.isArray(options.businessProvinceNames)
+      ? [...new Set(options.businessProvinceNames.filter(Boolean))]
+      : []
+    this.businessProvinceNames = configuredBusinessProvinceNames.length
+      ? configuredBusinessProvinceNames
+      : defaultBusinessProvinceNames
     // 地图拉伸高度
     this.depth = 0.5
-    this.mapFocusLabelInfo = {
+    const defaultMapFocusLabelInfo = {
       name: "全国分布中心",
       enName: "NATIONAL DISTRIBUTION CENTER",
       center: [106, 20],
     }
+    this.mapFocusLabelInfo = {
+      ...defaultMapFocusLabelInfo,
+      ...(options.mapFocusLabelInfo || {}),
+      center:
+        Array.isArray(options.mapFocusLabelInfo?.center) && options.mapFocusLabelInfo.center.length === 2
+          ? options.mapFocusLabelInfo.center
+          : defaultMapFocusLabelInfo.center,
+    }
     // 是否展示焦点省份之外的省份标签
-    this.showOtherProvinceLabels = true
+    this.showOtherProvinceLabels = options.showOtherProvinceLabels ?? true
+    // 是否展示主图区域名称（如江苏各城市）
+    this.showMainRegionLabels = options.showMainRegionLabels ?? false
     // 是否展示柱状图
-    this.showProvinceBars = true
+    this.showProvinceBars = options.showProvinceBars ?? true
+    // 是否显示全国底图
+    this.showChinaBaseMap = options.showChinaBaseMap ?? true
+    // 是否显示全国轮廓光晕
+    this.showChinaBlurLine = options.showChinaBlurLine ?? true
     // 柱状图展示的营销中心（默认全部）
-    this.provinceBarCenterIds = [...new Set(this.marketingCenters.map((item) => item.id))]
+    const defaultProvinceBarCenterIds = [...new Set(this.marketingCenters.map((item) => item.id).filter(Boolean))]
+    const configuredProvinceBarCenterIds = Array.isArray(options.provinceBarCenterIds)
+      ? [...new Set(options.provinceBarCenterIds.filter(Boolean))]
+      : []
+    this.provinceBarCenterIds = configuredProvinceBarCenterIds.length
+      ? configuredProvinceBarCenterIds
+      : defaultProvinceBarCenterIds
     // 是否点击
     this.clicked = false
     // 当前场景 mainScene | childScene
     this.currentScene = "mainScene"
     // 下钻历史
     this.history = new createHistory()
-    this.history.push({ name: "中国" })
+    this.history.push({ name: options.rootName || "中国" })
     // 子地图对象
     this.childMap = null
     // 主场景可见性快照
@@ -128,16 +192,25 @@ export class World extends Mini3d {
     // 省份侧面流光贴图（全局复用，避免重复绑定 tick 导致流速叠加）
     this.sideFlowTexture = null
     this.sideFlowTickHandler = null
+    const defaultInitialCameraPosition = new Vector3(-13.767695123014105, 12.990152163077308, 31.5)
+    const defaultMainCameraPosition = new Vector3(-0.17427287762525134, 10.6, 18.6)
+    const defaultMainCameraTarget = new Vector3(0, 0, 0)
+    const defaultChildCameraPosition = new Vector3(-0.35, 13.2, 17.8)
+    const defaultChildCameraTarget = new Vector3(0, 0, 0)
     // 主图镜头兜底（防止快照丢失）
     this.mainCameraFallbackState = {
-      position: new Vector3(-0.17427287762525134, 10.6, 18.6),
-      target: new Vector3(0, 0, 0),
+      position: resolveVector3State(options.mainCameraState?.position, defaultMainCameraPosition),
+      target: resolveVector3State(options.mainCameraState?.target, defaultMainCameraTarget),
     }
     // 下钻镜头预设（减小俯视，视角更平）
     this.childCameraState = {
-      position: new Vector3(-0.35, 13.2, 17.8),
-      target: new Vector3(0, 0, 0),
+      position: resolveVector3State(options.childCameraState?.position, defaultChildCameraPosition),
+      target: resolveVector3State(options.childCameraState?.target, defaultChildCameraTarget),
     }
+    this.initialCameraPosition = resolveVector3State(options.initialCameraPosition, defaultInitialCameraPosition)
+    // 子图缩放倍率（>1 放大子图）
+    this.childMapScaleMultiplier =
+      typeof options.childMapScaleMultiplier === "number" ? options.childMapScaleMultiplier : 1
     // 缓存加载失败的地图 URL（避免重复 404 请求和重复告警）
     this.failedMapUrlSet = new Set()
     // 远程地图源是否可用（403 后自动关闭）
@@ -149,7 +222,7 @@ export class World extends Mini3d {
     this.scene.background = new Color(0x102736)
 
     // 相机初始位置
-    this.camera.instance.position.set(-13.767695123014105, 12.990152163077308, 31.5)
+    this.camera.instance.position.copy(this.initialCameraPosition)
     this.camera.instance.near = 1
     this.camera.instance.far = 10000
     this.camera.instance.updateProjectionMatrix()
@@ -183,7 +256,9 @@ export class World extends Mini3d {
     // 创建底部高亮
     this.createBottomBg()
     // 模糊边线
-    this.createChinaBlurLine()
+    if (this.showChinaBlurLine) {
+      this.createChinaBlurLine()
+    }
 
     // 扩散网格
     this.createGrid()
@@ -219,11 +294,12 @@ export class World extends Mini3d {
     tl.addLabel("focusMap", 1.5)
     tl.addLabel("focusMapOpacity", 2)
     tl.addLabel("bar", 3)
+    const mainCameraPosition = this.mainCameraFallbackState.position
     tl.to(this.camera.instance.position, {
       duration: 2,
-      x: -0.17427287762525134,
-      y: 10.6,
-      z: 18.6,
+      x: mainCameraPosition.x,
+      y: mainCameraPosition.y,
+      z: mainCameraPosition.z,
       ease: "circ.out",
       onStart: () => {
         this.flyLineFocusGroup.visible = false
@@ -450,10 +526,12 @@ export class World extends Mini3d {
     this.mapRootGroup = mapGroup
     let focusMapGroup = new Group()
     this.focusMapGroup = focusMapGroup
-    let { china, chinaTopLine } = this.createChina()
+    let chinaLayer = this.showChinaBaseMap ? this.createChina() : null
     let { map, mapTop, mapLine } = this.createProvince()
-    china.setParent(mapGroup)
-    chinaTopLine.setParent(mapGroup)
+    if (chinaLayer) {
+      chinaLayer.china.setParent(mapGroup)
+      chinaLayer.chinaTopLine.setParent(mapGroup)
+    }
     // 创建扩散
     this.createDiffuse()
     map.setParent(focusMapGroup)
@@ -472,7 +550,8 @@ export class World extends Mini3d {
     this.createBar()
   }
   getMapData(resourceName) {
-    return this.assets.instance.getResource(resourceName)
+    const resolvedResourceName = this.resourceNames?.[resourceName] || resourceName
+    return this.assets.instance.getResource(resolvedResourceName)
   }
   getBusinessProvinceMapData(resourceName) {
     let mapData = this.getMapData(resourceName)
@@ -490,9 +569,18 @@ export class World extends Mini3d {
     if (!Array.isArray(geoData.features)) {
       return mapData
     }
+    if (!this.businessProvinceNames.length) {
+      return mapData
+    }
+    const filteredFeatures = geoData.features.filter((feature) =>
+      this.businessProvinceNames.includes(feature?.properties?.name)
+    )
+    if (!filteredFeatures.length) {
+      return mapData
+    }
     const filteredGeoData = {
       ...geoData,
-      features: geoData.features.filter((feature) => this.businessProvinceNames.includes(feature?.properties?.name)),
+      features: filteredFeatures,
     }
     if (typeof mapData === "string") {
       return JSON.stringify(filteredGeoData)
@@ -526,6 +614,35 @@ export class World extends Mini3d {
     })
 
     return anchorMap
+  }
+  getMainRegionLabelData() {
+    const mapData = this.getBusinessProvinceMapData("mapJson")
+    let geoData = mapData
+
+    if (typeof mapData === "string") {
+      try {
+        geoData = JSON.parse(mapData)
+      } catch (error) {
+        return []
+      }
+    }
+
+    if (!Array.isArray(geoData?.features)) {
+      return []
+    }
+
+    return geoData.features
+      .map((feature) => {
+        const name = feature?.properties?.name
+        const center =
+          feature?.properties?.center?.length === 2
+            ? feature.properties.center
+            : feature?.properties?.centroid?.length === 2
+              ? feature.properties.centroid
+              : null
+        return { name, center }
+      })
+      .filter((item) => item.name && Array.isArray(item.center))
   }
   createChina() {
     let params = {
@@ -985,6 +1102,7 @@ export class World extends Mini3d {
         childrenNum: userData.childrenNum,
         mapData: data,
         parentBoxSize: this.mainMapParentBoxSize || [20, 20],
+        scaleMultiplier: this.childMapScaleMultiplier,
       })
 
       this.childSceneGroup.add(this.childMap.instance)
@@ -1400,6 +1518,12 @@ export class World extends Mini3d {
       )
       otherLabel.push(label)
     })
+    if (this.showMainRegionLabels) {
+      this.getMainRegionLabelData().forEach((region) => {
+        let label = labelStyle05(region, label3d, labelGroup)
+        otherLabel.push(label)
+      })
+    }
     let mapFocusLabel = labelStyle02(
       {
         ...this.mapFocusLabelInfo,
@@ -1483,6 +1607,14 @@ export class World extends Mini3d {
         new Vector3(x, -y, 2.4)
       )
       label3d.setLabelStyle(label, 0.02, "x")
+      label.setParent(labelGroup)
+      return label
+    }
+    function labelStyle05(data, label3d, labelGroup) {
+      let label = label3d.create("", "main-region-label", false)
+      const [x, y] = self.geoProjection(data.center)
+      label.init(`<div class="other-label">${data.name}</div>`, new Vector3(x, -y, self.depth + 0.45))
+      label3d.setLabelStyle(label, 0.013, "x")
       label.setParent(labelGroup)
       return label
     }

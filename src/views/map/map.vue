@@ -7,6 +7,12 @@
 import { onMounted, shallowRef, onBeforeUnmount } from "vue";
 import { World } from "./map.js";
 import emitter from "@/utils/emitter";
+const props = defineProps({
+  worldOptions: {
+    type: Object,
+    default: () => ({}),
+  },
+})
 const canvasMap = shallowRef(null);
 onMounted(() => {
   emitter.$on("loadMap", loadMap);
@@ -16,7 +22,7 @@ onBeforeUnmount(() => {
   emitter.$off("loadMap", loadMap);
 });
 function loadMap(assets) {
-  canvasMap.value = new World(document.getElementById("canvasMap"), assets);
+  canvasMap.value = new World(document.getElementById("canvasMap"), assets, props.worldOptions);
   canvasMap.value.time.pause();
 }
 function goBack() {
@@ -207,6 +213,20 @@ defineExpose({
       width: 20px;
       height: 20px;
       margin: 0 10px 0 0;
+    }
+  }
+  .main-region-label {
+    color: #d8f2ff;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(107, 231, 255, 0.8);
+    .other-label {
+      padding: 2px 8px;
+      border: 1px solid rgba(104, 218, 255, 0.45);
+      border-radius: 4px;
+      background: rgba(5, 20, 36, 0.55);
+      white-space: nowrap;
     }
   }
   .map-label {

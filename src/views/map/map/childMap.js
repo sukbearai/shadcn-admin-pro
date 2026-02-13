@@ -18,6 +18,7 @@ export class ChildMap {
       parentBoxSize: [1, 1],
       mapData: "",
       geoProjectionScale: 120,
+      scaleMultiplier: 1,
     }
 
     this.options = Object.assign({}, defaultOptions, options)
@@ -165,7 +166,9 @@ export class ChildMap {
   calculateScale(parentBoxSize, boxSize) {
     let xScale = parentBoxSize[0] / boxSize[0]
     let yScale = parentBoxSize[1] / boxSize[1]
-    return Math.min(xScale, yScale)
+    const baseScale = Math.min(xScale, yScale)
+    const scaleMultiplier = Number.isFinite(this.options.scaleMultiplier) ? this.options.scaleMultiplier : 1
+    return baseScale * Math.max(scaleMultiplier, 0.1)
   }
 
   setScale(map, mapTop, mapLine) {
