@@ -1,7 +1,8 @@
 <template>
   <div class="large-screen">
     <!-- 地图 -->
-    <mapScene ref="mapSceneRef" :world-options="globeWorldOptions"></mapScene>
+    <mapScene ref="mapSceneRef" :world-options="globeWorldOptions"
+      :class="{ 'map-scene-hidden': state.showEarthIntro }"></mapScene>
     <!-- 地球飞线过渡层 -->
     <IntroEarthFlyline :active="state.showEarthIntro" ref="introEarthFlylineRef"></IntroEarthFlyline>
     <!-- 全屏云层（独立于地图） -->
@@ -12,7 +13,7 @@
         <template v-slot:left>
           <div class="m-header-weather"><span>小雪</span><span>-4℃</span></div>
         </template>
-        -->
+-->
         <!--右侧 日期 -->
         <template v-slot:right>
           <div class="m-header-date"><span>{{ state.currentDate }}</span><span>{{ state.currentTime }}</span></div>
@@ -82,7 +83,7 @@
           <div class="bottom-menu-item is-active switch-view-btn"
             :class="{ 'is-disabled': state.isViewSwitching || (state.showEarthIntro && !state.awaitingChinaClick) }"
             @click="toggleView">
-            <span>切换视图</span>
+            <span>切换地图视图</span>
           </div>
           <div class="bottom-menu-item is-active return-btn return-related" @click="goBack">
             <span>返回上一级</span>
@@ -649,6 +650,12 @@ function handleMapPlayComplete() {
   z-index: 5;
 }
 
+.map-scene-hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .bottom-tray {
   .bottom-menu-group {
     padding: 0 14px;
@@ -666,6 +673,7 @@ function handleMapPlayComplete() {
   .switch-view-btn,
   .return-btn {
     width: 120px;
+
     span {
       width: 120px;
     }
@@ -723,5 +731,4 @@ function handleMapPlayComplete() {
   margin-right: inherit;
   margin-left: -5px;
 }
-
 </style>
