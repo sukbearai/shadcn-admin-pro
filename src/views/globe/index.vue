@@ -83,7 +83,7 @@
           <div class="bottom-menu-item is-active switch-view-btn"
             :class="{ 'is-disabled': state.isViewSwitching || (state.showEarthIntro && !state.awaitingChinaClick) }"
             @click="toggleView">
-            <span>切换地图视图</span>
+            <span>切换地图</span>
           </div>
           <div class="bottom-menu-item is-active return-btn return-related" @click="goBack">
             <span>返回上一级</span>
