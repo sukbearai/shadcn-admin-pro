@@ -29,9 +29,10 @@ function goBack() {
   canvasMap.value && canvasMap.value.goBack();
 }
 async function play() {
+  if (!canvasMap.value) return;
   canvasMap.value.time.resume();
   canvasMap.value.animateTl.timeScale(1); // 设置播放速度正常
-  canvasMap.value.animateTl.play();
+  canvasMap.value.animateTl.restart();
 }
 defineExpose({
   loadMap,
