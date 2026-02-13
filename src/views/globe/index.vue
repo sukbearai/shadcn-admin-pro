@@ -149,13 +149,13 @@ const globeWorldOptions = {
     enName: "JIANGSU PROVINCE",
     center: [119.486506, 29.8],
   },
-  initialCameraPosition: [-11.8, 10.2, 24.5],
+  initialCameraPosition: [-12.8, 12.2, 27.8],
   mainCameraState: {
-    position: [-0.17427287762525134, 8.2, 14.2],
+    position: [-0.17427287762525134, 10.6, 16.2],
     target: [0, 0, 0],
   },
   childCameraState: {
-    position: [-0.2, 9.2, 12.4],
+    position: [-0.35, 12.2, 15.8],
     target: [0, 0, 0],
   },
   marketingCenters: [
