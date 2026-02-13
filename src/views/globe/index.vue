@@ -2,6 +2,8 @@
   <div class="large-screen">
     <!-- 地图 -->
     <mapScene ref="mapSceneRef" :world-options="globeWorldOptions"></mapScene>
+    <!-- 全屏云层（独立于地图） -->
+    <ScreenCloudLayer></ScreenCloudLayer>
     <div class="large-screen-wrap" id="large-screen">
       <m-header title="恶意代码预警通报管理平台" sub-text="Malicious Code Warning Bulletin Management Platform">
         <!--左侧 天气（暂时注释，后续可恢复）
@@ -127,6 +129,7 @@ import PurposeSpecialFunds from "./components/PurposeSpecialFunds.vue"
 import ProportionPopulationConsumption from "./components/ProportionPopulationConsumption.vue"
 import ElectricityUsage from "./components/ElectricityUsage.vue"
 import QuarterlyGrowthSituation from "./components/QuarterlyGrowthSituation.vue"
+import ScreenCloudLayer from "./components/ScreenCloudLayer.vue"
 
 import { Assets } from "./assets.js"
 import globeWorldOptions from "./config/worldOptions.js"

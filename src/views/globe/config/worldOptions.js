@@ -40,6 +40,18 @@ const globeWorldOptions = {
   childMapScaleMultiplier: 1.6,
   showChinaBaseMap: false,
   showChinaBlurLine: false,
+  cloudLayer: {
+    enabled: false,
+    textureName: "cloudLayer",
+    secondaryTextureName: "cloudLayer",
+    opacity: 0.55,
+    height: 0.78,
+    sizeScale: 1.2,
+    speedX: 0.0014,
+    speedY: 0.0008,
+    dualLayer: true,
+    childSceneVisible: false,
+  },
 }
 
 export default globeWorldOptions

@@ -16,6 +16,7 @@ import {
   RepeatWrapping,
   SRGBColorSpace,
   AdditiveBlending,
+  NormalBlending,
   VideoTexture,
   NearestFilter,
   BoxGeometry,
@@ -98,6 +99,38 @@ function resolveVector3State(value, fallback) {
     )
   }
   return fallback.clone()
+}
+
+function resolveCloudLayerConfig(config, depth) {
+  const defaultConfig = {
+    enabled: true,
+    textureName: "cloudLayer",
+    secondaryTextureName: "cloudLayer",
+    opacity: 0.55,
+    height: depth + 0.28,
+    sizeScale: 1.2,
+    speedX: 0.0014,
+    speedY: 0.0008,
+    dualLayer: true,
+    childSceneVisible: false,
+    renderOrder: 6,
+  }
+  const resolvedConfig = {
+    ...defaultConfig,
+    ...(config || {}),
+  }
+  return {
+    ...resolvedConfig,
+    enabled: resolvedConfig.enabled !== false,
+    dualLayer: resolvedConfig.dualLayer !== false,
+    childSceneVisible: resolvedConfig.childSceneVisible === true,
+    opacity: Math.min(1, Math.max(0, toNumber(resolvedConfig.opacity, defaultConfig.opacity))),
+    height: toNumber(resolvedConfig.height, defaultConfig.height),
+    sizeScale: Math.max(1, toNumber(resolvedConfig.sizeScale, defaultConfig.sizeScale)),
+    speedX: toNumber(resolvedConfig.speedX, defaultConfig.speedX),
+    speedY: toNumber(resolvedConfig.speedY, defaultConfig.speedY),
+    renderOrder: Math.round(toNumber(resolvedConfig.renderOrder, defaultConfig.renderOrder)),
+  }
 }
 
 export class World extends Mini3d {
@@ -192,6 +225,11 @@ export class World extends Mini3d {
     // 省份侧面流光贴图（全局复用，避免重复绑定 tick 导致流速叠加）
     this.sideFlowTexture = null
     this.sideFlowTickHandler = null
+    // 贴地云层
+    this.cloudLayerOptions = resolveCloudLayerConfig(options.cloudLayer, this.depth)
+    this.cloudGroup = null
+    this.cloudLayers = []
+    this.cloudTickHandler = null
     const defaultInitialCameraPosition = new Vector3(-13.767695123014105, 12.990152163077308, 31.5)
     const defaultMainCameraPosition = new Vector3(-0.17427287762525134, 10.6, 18.6)
     const defaultMainCameraTarget = new Vector3(0, 0, 0)
@@ -268,6 +306,8 @@ export class World extends Mini3d {
     this.createLabel()
     // 创建地图
     this.createMap()
+    // 创建贴地云层
+    this.createCloudLayer()
     // 添加事件
     this.createEvent()
     // 创建飞线
@@ -548,6 +588,117 @@ export class World extends Mini3d {
     mapGroup.position.set(0, 0.2, 0)
     this.scene.add(mapGroup)
     this.createBar()
+  }
+  createCloudLayer() {
+    if (!this.cloudLayerOptions.enabled) {
+      return
+    }
+    const primaryTexture = this.assets.instance.getResource(this.cloudLayerOptions.textureName)
+    if (!primaryTexture) {
+      console.warn(`[map] 云层贴图资源不存在: ${this.cloudLayerOptions.textureName}`)
+      return
+    }
+
+    const [mapWidth = 20, mapHeight = 20] = this.mainMapParentBoxSize || [20, 20]
+    const cloudWidth = Math.max(8, mapWidth * this.cloudLayerOptions.sizeScale)
+    const cloudHeight = Math.max(8, mapHeight * this.cloudLayerOptions.sizeScale)
+
+    const cloudGroup = new Group()
+    cloudGroup.rotation.x = -Math.PI / 2
+    cloudGroup.position.set(0, this.cloudLayerOptions.height, 0)
+    this.cloudGroup = cloudGroup
+    this.scene.add(cloudGroup)
+
+    const createCloudPlane = ({ baseTexture, opacity, scale, speedX, speedY, zOffset, rotateSpeed }) => {
+      const texture = baseTexture.clone()
+      texture.needsUpdate = true
+      texture.wrapS = RepeatWrapping
+      texture.wrapT = RepeatWrapping
+      texture.repeat.set(2.1, 2.1)
+      texture.offset.set(Math.random(), Math.random())
+      texture.colorSpace = SRGBColorSpace
+
+      const material = new MeshBasicMaterial({
+        color: 0xffffff,
+        map: texture,
+        alphaMap: texture,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        depthTest: false,
+        fog: false,
+        blending: NormalBlending,
+        side: DoubleSide,
+      })
+      const geometry = new PlaneGeometry(cloudWidth * scale, cloudHeight * scale)
+      const mesh = new Mesh(geometry, material)
+      mesh.renderOrder = this.cloudLayerOptions.renderOrder
+      mesh.position.set(0, 0, zOffset)
+      cloudGroup.add(mesh)
+
+      this.cloudLayers.push({
+        mesh,
+        texture,
+        material,
+        speedX,
+        speedY,
+        rotateSpeed,
+      })
+    }
+
+    createCloudPlane({
+      baseTexture: primaryTexture,
+      opacity: this.cloudLayerOptions.opacity,
+      scale: 1,
+      speedX: this.cloudLayerOptions.speedX,
+      speedY: this.cloudLayerOptions.speedY,
+      zOffset: 0,
+      rotateSpeed: 0.00035,
+    })
+
+    if (this.cloudLayerOptions.dualLayer) {
+      const secondaryTexture =
+        this.assets.instance.getResource(this.cloudLayerOptions.secondaryTextureName) || primaryTexture
+      createCloudPlane({
+        baseTexture: secondaryTexture,
+        opacity: this.cloudLayerOptions.opacity * 0.62,
+        scale: 1.08,
+        speedX: -this.cloudLayerOptions.speedX * 0.7,
+        speedY: this.cloudLayerOptions.speedY * 0.6,
+        zOffset: 0.002,
+        rotateSpeed: -0.0002,
+      })
+    }
+
+    this.cloudTickHandler = () => {
+      this.cloudLayers.forEach((layer) => {
+        layer.texture.offset.x += layer.speedX
+        layer.texture.offset.y += layer.speedY
+        if (layer.rotateSpeed) {
+          layer.mesh.rotation.z += layer.rotateSpeed
+        }
+      })
+    }
+    this.time.on("tick", this.cloudTickHandler)
+  }
+  disposeCloudLayer() {
+    if (this.cloudTickHandler) {
+      this.time.off("tick", this.cloudTickHandler)
+      this.cloudTickHandler = null
+    }
+    if (Array.isArray(this.cloudLayers)) {
+      this.cloudLayers.forEach((layer) => {
+        layer.mesh?.geometry?.dispose()
+        layer.material?.dispose()
+        layer.texture?.dispose()
+      })
+    }
+    this.cloudLayers = []
+    if (this.cloudGroup) {
+      this.scene.remove(this.cloudGroup)
+      this.cloudGroup.clear()
+      this.cloudGroup = null
+    }
   }
   getMapData(resourceName) {
     const resolvedResourceName = this.resourceNames?.[resourceName] || resourceName
@@ -1255,6 +1406,7 @@ export class World extends Mini3d {
         particleGroup: this.particleGroup ? this.particleGroup.visible : false,
         rotateBorder1: this.rotateBorder1 ? this.rotateBorder1.visible : false,
         rotateBorder2: this.rotateBorder2 ? this.rotateBorder2.visible : false,
+        cloudGroup: this.cloudGroup ? this.cloudGroup.visible : false,
       }
     }
 
@@ -1292,6 +1444,11 @@ export class World extends Mini3d {
     }
     if (this.rotateBorder2) {
       this.rotateBorder2.visible = bool ? this.mainSceneVisibilityState?.rotateBorder2 ?? false : false
+    }
+    if (this.cloudGroup) {
+      const shouldKeepVisibleOnChild = this.cloudLayerOptions.childSceneVisible
+      const visibleState = this.mainSceneVisibilityState?.cloudGroup ?? true
+      this.cloudGroup.visible = !bool && shouldKeepVisibleOnChild ? visibleState : bool ? visibleState : false
     }
     this.setMainLabelElementsVisible(this.labelGroup ? this.labelGroup.visible : bool)
     if (bool === true) {
@@ -1911,11 +2068,16 @@ export class World extends Mini3d {
     this.interactionManager && this.interactionManager.update()
   }
   destroy() {
-    super.destroy()
+    this.disposeCloudLayer()
+    if (this.sideFlowTickHandler) {
+      this.time.off("tick", this.sideFlowTickHandler)
+      this.sideFlowTickHandler = null
+    }
     this.childMap && this.childMap.destroy()
     this.childMap = null
     this.label3d && this.label3d.destroy()
     this.setReturnButtonVisible(false)
     document.body.style.cursor = "default"
+    super.destroy()
   }
 }

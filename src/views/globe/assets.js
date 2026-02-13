@@ -15,6 +15,8 @@ import guangquan2 from "@/assets/texture/guangquan02.png"
 import huiguang from "@/assets/texture/huiguang.png"
 import arrow from "@/assets/texture/arrow.png"
 import point from "@/assets/texture/point1.png"
+import dotBlur from "@/assets/texture/dot_blur.png"
+import cloudLayerTexture from "@/assets/texture/cloud-layer.png"
 import flyLineFocus from "@/assets/texture/guangquan01.png"
 import mapFlyline from "@/assets/texture/flyline6.png"
 // 焦点贴图
@@ -79,6 +81,8 @@ export class Assets {
       { type: "Texture", name: "mapFlyline", path: mapFlyline },
       { type: "Texture", name: "arrow", path: arrow },
       { type: "Texture", name: "point", path: point },
+      { type: "Texture", name: "cloudLayer", path: cloudLayerTexture },
+      { type: "Texture", name: "dotBlur", path: dotBlur },
 
       // focus
       { type: "Texture", name: "focusArrows", path: focusArrowsTexture },
