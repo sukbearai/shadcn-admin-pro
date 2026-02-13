@@ -79,6 +79,10 @@ function formatInteger(value) {
   return integerFormatter.format(Math.round(toNumber(value, 0)))
 }
 
+function resolveChildMapSuffix(childrenNum) {
+  return childrenNum === 0 ? ".json" : "_full.json"
+}
+
 export class World extends Mini3d {
   constructor(canvas, assets) {
     super(canvas)
@@ -104,8 +108,8 @@ export class World extends Mini3d {
     this.showOtherProvinceLabels = true
     // 是否展示柱状图
     this.showProvinceBars = true
-    // 柱状图展示的营销中心（当前仅北京市）
-    this.provinceBarCenterIds = ["beijing"]
+    // 柱状图展示的营销中心（默认全部）
+    this.provinceBarCenterIds = [...new Set(this.marketingCenters.map((item) => item.id))]
     // 是否点击
     this.clicked = false
     // 当前场景 mainScene | childScene
@@ -134,6 +138,8 @@ export class World extends Mini3d {
       position: new Vector3(-0.35, 13.2, 17.8),
       target: new Vector3(0, 0, 0),
     }
+    // 远程地图源是否可用（403 后自动关闭）
+    this.remoteMapFetchEnabled = true
 
     // 雾
     this.scene.fog = new Fog(0x102736, 1, 50)
@@ -354,11 +360,6 @@ export class World extends Mini3d {
 
     this.allProvinceLabel.map((item, index) => {
       let element = item.element.querySelector(".provinces-label-wrap")
-      let number = item.element.querySelector(".number .value")
-      let numberVal = toNumber(number?.dataset?.value, toNumber(number.innerText))
-      let numberAnimate = {
-        score: 0,
-      }
       tl.to(
         element,
         {
@@ -370,19 +371,6 @@ export class World extends Mini3d {
         },
         "bar"
       )
-      tl.to(
-        numberAnimate,
-        {
-          duration: 1,
-          delay: 0.2 * index,
-          score: numberVal,
-          onUpdate: showScore,
-        },
-        "bar"
-      )
-      function showScore() {
-        number.innerText = formatInteger(numberAnimate.score)
-      }
     })
     this.allGuangquan.map((item, index) => {
       tl.to(
@@ -797,7 +785,7 @@ export class World extends Mini3d {
       return
     }
     let self = this
-    let data = sortByValue([...this.marketingCenters]).filter((item) => this.provinceBarCenterIds.includes(item.id))
+    let data = [...this.marketingCenters].filter((item) => this.provinceBarCenterIds.includes(item.id))
     if (!data.length) {
       return
     }
@@ -805,9 +793,9 @@ export class World extends Mini3d {
     this.barGroup = barGroup
     const factor = 0.7
     const height = 4.0 * factor
-    const max = data[0].value
+    const max = data.reduce((currentMax, item) => Math.max(currentMax, toNumber(item.value, 0)), 0) || 1
     data.map((item, index) => {
-      let geoHeight = height * (item.value / max)
+      let geoHeight = height * (toNumber(item.value, 0) / max)
       let material = new MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
@@ -844,16 +832,15 @@ export class World extends Mini3d {
     this.scene.add(barGroup)
     function labelStyle04(data, index, position) {
       let label = self.label3d.create("", "provinces-label", false)
-      const maliciousCodeCount = toNumber(data.maliciousCodeCount, 500000)
+      const centerTypeLabel = data.id === self.flyLineCenterId ? "总部" : "分中心"
       label.init(
-        `<div class="provinces-label ${index > 4 ? "yellow" : ""}">
+        `<div class="provinces-label">
       <div class="provinces-label-wrap">
-        <div class="number"><span class="value" data-value="${maliciousCodeCount}">${formatInteger(maliciousCodeCount)}</span><span class="unit">已检出威胁数</span></div>
         <div class="name">
           <span class="zh">${data.name}</span>
           <span class="en">${data.enName.toUpperCase()}</span>
         </div>
-        <div class="no">${index + 1}</div>
+        <div class="type">${centerTypeLabel}</div>
       </div>
     </div>`,
         position
@@ -999,26 +986,105 @@ export class World extends Mini3d {
   }
 
   getChildMapData(userData, callback) {
-    let url = `https://geo.datav.aliyun.com/areas_v3/bound/${userData.adcode}_full.json`
+    const run = async () => {
+      const sources = this.getChildMapRequestSources(userData)
 
-    if (userData.childrenNum === 0) {
-      url = `https://geo.datav.aliyun.com/areas_v3/bound/${userData.adcode}.json`
+      for (let i = 0; i < sources.length; i += 1) {
+        const source = sources[i]
+        try {
+          const data = await this.fetchMapText(source.url)
+          callback && callback(data)
+          return
+        } catch (error) {
+          if (source.type === "remote" && error?.status === 403) {
+            this.remoteMapFetchEnabled = false
+          }
+          console.warn(`[map] 地图数据加载失败 (${source.type}): ${source.url}`, error)
+        }
+      }
+
+      const fallbackData = this.getProvinceFallbackGeoData(userData.adcode)
+      if (fallbackData) {
+        console.warn(`[map] 使用省级轮廓兜底数据: ${userData.name || userData.adcode}`)
+        callback && callback(fallbackData)
+        return
+      }
+
+      this.clicked = false
+      callback && callback(null)
     }
 
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`地图数据加载失败: ${res.status}`)
-        }
-        return res.text()
+    run()
+  }
+
+  getChildMapRequestSources(userData) {
+    const suffix = resolveChildMapSuffix(userData.childrenNum)
+    const fileName = `${userData.adcode}${suffix}`
+    const baseUrl = import.meta.env.BASE_URL
+    const sources = [{ type: "local", url: `${baseUrl}assets/json/areas_v3/bound/${fileName}` }]
+
+    if (userData?.name) {
+      sources.push({
+        type: "local",
+        url: `${baseUrl}assets/json/${encodeURIComponent(userData.name)}.json`,
       })
-      .then((res) => {
-        callback && callback(res)
+    }
+
+    if (this.remoteMapFetchEnabled) {
+      sources.push({
+        type: "remote",
+        url: `https://geo.datav.aliyun.com/areas_v3/bound/${fileName}`,
       })
-      .catch((error) => {
-        console.warn(error)
-        this.clicked = false
-      })
+    }
+
+    return sources
+  }
+
+  async fetchMapText(url) {
+    const res = await fetch(url, {
+      referrerPolicy: "no-referrer",
+    })
+    if (!res.ok) {
+      const error = new Error(`地图数据加载失败: ${res.status}`)
+      error.status = res.status
+      throw error
+    }
+    return res.text()
+  }
+
+  getProvinceFallbackGeoData(adcode) {
+    const mapData = this.getBusinessProvinceMapData("mapJson")
+    let geoData = mapData
+
+    if (typeof mapData === "string") {
+      try {
+        geoData = JSON.parse(mapData)
+      } catch (error) {
+        return null
+      }
+    }
+
+    if (!Array.isArray(geoData?.features)) {
+      return null
+    }
+
+    const feature = geoData.features.find((item) => item?.properties?.adcode === adcode)
+    if (!feature) {
+      return null
+    }
+
+    return JSON.stringify({
+      type: "FeatureCollection",
+      features: [
+        {
+          ...feature,
+          properties: {
+            ...(feature.properties || {}),
+            childrenNum: 0,
+          },
+        },
+      ],
+    })
   }
 
   setMainLabelElementsVisible(visible) {
@@ -1043,6 +1109,7 @@ export class World extends Mini3d {
         flyLineGroup: this.flyLineGroup ? this.flyLineGroup.visible : false,
         flyLineFocusGroup: this.flyLineFocusGroup ? this.flyLineFocusGroup.visible : false,
         barGroup: this.barGroup ? this.barGroup.visible : false,
+        guangquanVisibleList: (this.allGuangquan || []).map((group) => (group ? group.visible : false)),
         scatterGroup: this.scatterGroup ? this.scatterGroup.visible : false,
         particleGroup: this.particleGroup ? this.particleGroup.visible : false,
         rotateBorder1: this.rotateBorder1 ? this.rotateBorder1.visible : false,
@@ -1064,6 +1131,14 @@ export class World extends Mini3d {
     }
     if (this.barGroup) {
       this.barGroup.visible = bool ? this.mainSceneVisibilityState?.barGroup ?? false : false
+    }
+    if (Array.isArray(this.allGuangquan)) {
+      this.allGuangquan.forEach((group, index) => {
+        if (!group) {
+          return
+        }
+        group.visible = bool ? this.mainSceneVisibilityState?.guangquanVisibleList?.[index] ?? true : false
+      })
     }
     if (this.scatterGroup) {
       this.scatterGroup.visible = bool ? this.mainSceneVisibilityState?.scatterGroup ?? false : false

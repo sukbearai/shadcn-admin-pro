@@ -46,6 +46,9 @@ export default ({ mode }) => {
         },
       },
     },
+    server: {
+      allowedHosts: ["nitro.congrongtech.cn"],
+    },
     build: {
       minify: "esbuild",
       target: "es2015",

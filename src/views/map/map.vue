@@ -129,11 +129,20 @@ defineExpose({
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 20px;
-      width: 240px;
+      gap: 8px;
+      padding: 0 14px;
+      width: 140px;
       height: 66px;
       border-radius: 30px 30px 30px 0px;
       background: rgba(0, 0, 0, 0.4);
+    }
+    .type {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0.65;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .number {
       color: #fff;
