@@ -12,6 +12,7 @@
     "autofit.js": "^3.1.0",
     "d3-geo": "^3.1.0",
     "delaunator": "^5.0.0",
+    "earth-flyline": "^1.6.8",
     "echarts": "^5.5.0",
     "gsap": "^3.12.2",
     "normalize.css": "^8.0.1",
