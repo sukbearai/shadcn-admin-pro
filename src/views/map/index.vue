@@ -1,9 +1,9 @@
 <template>
   <div class="large-screen">
     <!-- 地图 -->
-    <mapScene ref="mapSceneRef"></mapScene>
+    <mapScene ref="mapSceneRef" :world-options="mapViewConfig.mapScene.worldOptions"></mapScene>
     <div class="large-screen-wrap" id="large-screen">
-      <m-header title="网络边界威胁感知" sub-text="Network Boundary Threat Perception">
+      <m-header :title="mapViewConfig.header.title" :sub-text="mapViewConfig.header.subText">
         <!--左侧 天气（暂时注释，后续可恢复）
         <template v-slot:left>
           <div class="m-header-weather"><span>小雪</span><span>-4℃</span></div>
@@ -17,13 +17,9 @@
       <!-- 顶部菜单 -->
       <div class="top-menu">
         <mMenu :default-active="state.activeIndex" @select="handleMenuSelect">
-          <!-- <mMenuItem index="1">经济概览</mMenuItem> -->
-          <!-- <mMenuItem index="2">导航栏</mMenuItem> -->
-          <!-- <mMenuItem index="3">导航栏</mMenuItem> -->
-          <!-- <div class="top-menu-mid-space"></div> -->
-          <!-- <mMenuItem index="4">导航栏</mMenuItem> -->
-          <!-- <mMenuItem index="5">导航栏</mMenuItem> -->
-          <!-- <mMenuItem index="6">导航栏</mMenuItem> -->
+          <mMenuItem v-for="item in mapViewConfig.menu.items" :key="item.index" :index="item.index">
+            {{ item.label }}
+          </mMenuItem>
         </mMenu>
       </div>
       <!-- 顶部统计卡片（暂时注释，后续可恢复）
@@ -34,27 +30,23 @@
       <!-- 左边布局 图表 -->
       <div class="left-wrap">
         <div class="left-wrap-3d">
-          <!-- 大宗商品销售额 -->
-          <BulkCommoditySalesChart></BulkCommoditySalesChart>
-          <!-- 年度经济增长点 -->
-          <YearlyEconomyTrend></YearlyEconomyTrend>
-          <!-- 近年经济情况 -->
-          <EconomicTrendChart></EconomicTrendChart>
-          <!-- 各区经济收益 -->
-          <DistrictEconomicIncome></DistrictEconomicIncome>
+          <component
+            v-for="panel in mapViewConfig.panels.left"
+            :key="panel.id"
+            :is="panel.component"
+            v-bind="panel.props || {}"
+          ></component>
         </div>
       </div>
       <!-- 右边布局 图表 -->
       <div class="right-wrap">
         <div class="right-wrap-3d">
-          <!-- 专项资金用途 -->
-          <PurposeSpecialFunds> </PurposeSpecialFunds>
-          <!-- 人群消费占比 -->
-          <ProportionPopulationConsumption></ProportionPopulationConsumption>
-          <!-- 用电情况 -->
-          <ElectricityUsage></ElectricityUsage>
-          <!-- 各季度增长情况 -->
-          <QuarterlyGrowthSituation></QuarterlyGrowthSituation>
+          <component
+            v-for="panel in mapViewConfig.panels.right"
+            :key="panel.id"
+            :is="panel.component"
+            v-bind="panel.props || {}"
+          ></component>
         </div>
       </div>
       <!-- 底部托盘 -->
@@ -75,7 +67,9 @@
         </div>
         <!-- 底部菜单 -->
         <div class="bottom-menu return-related">
-          <div class="bottom-menu-item is-active return-btn" @click="goBack"><span>返回上级</span></div>
+          <div class="bottom-menu-item is-active return-btn" @click="goBack">
+            <span>{{ mapViewConfig.bottomTray.returnLabel }}</span>
+          </div>
         </div>
         <!-- 右箭头 -->
         <div class="bottom-tray-arrow is-reverse return-related">
@@ -95,13 +89,13 @@
     <!-- loading动画 -->
     <div class="loading">
       <div class="loading-text">
-        <span style="--index: 1">L</span>
-        <span style="--index: 2">O</span>
-        <span style="--index: 3">A</span>
-        <span style="--index: 4">D</span>
-        <span style="--index: 5">I</span>
-        <span style="--index: 6">N</span>
-        <span style="--index: 7">G</span>
+        <span
+          v-for="(char, index) in loadingChars"
+          :key="`${char}-${index}`"
+          :style="{ '--index': index + 1 }"
+        >
+          {{ char }}
+        </span>
       </div>
       <div class="loading-progress">
         <span class="value">{{ state.progress }}</span>
@@ -114,53 +108,31 @@
 import { shallowRef, ref, reactive, onMounted, onBeforeUnmount } from "vue"
 import mapScene from "./map.vue"
 import mHeader from "@/components/mHeader/index.vue"
-import mCountCard from "@/components/mCountCard/index.vue"
 import mMenu from "@/components/mMenu/index.vue"
 import mRadar from "@/components/mRadar/index.vue"
 import mMenuItem from "@/components/mMenuItem/index.vue"
 import mSvglineAnimation from "@/components/mSvglineAnimation/index.vue"
-import BulkCommoditySalesChart from "./components/BulkCommoditySalesChart.vue"
-import YearlyEconomyTrend from "./components/YearlyEconomyTrend.vue"
-import EconomicTrendChart from "./components/EconomicTrendChart.vue"
-import DistrictEconomicIncome from "./components/DistrictEconomicIncome.vue"
-import PurposeSpecialFunds from "./components/PurposeSpecialFunds.vue"
-import ProportionPopulationConsumption from "./components/ProportionPopulationConsumption.vue"
-import ElectricityUsage from "./components/ElectricityUsage.vue"
-import QuarterlyGrowthSituation from "./components/QuarterlyGrowthSituation.vue"
 
 import { Assets } from "./assets.js"
+import { mapViewConfig } from "./config"
 import emitter from "@/utils/emitter"
 import gsap from "gsap"
 import autofit from "autofit.js"
 
 const assets = shallowRef(null)
 const mapSceneRef = ref(null)
+const loadingChars = mapViewConfig.loading.text.split("")
 const state = reactive({
   // 进度
   progress: 0,
   // 当前顶部导航索引
-  activeIndex: "1",
+  activeIndex: mapViewConfig.menu.defaultActiveIndex || mapViewConfig.menu.items[0]?.index || "1",
   // 头部日期
   currentDate: "",
   // 头部时间
   currentTime: "",
   // 卡片统计数据
-  totalView: [
-    {
-      icon: "xiaoshoujine",
-      zh: "2025年生产总值",
-      en: "Gross Domestic Product in 2025",
-      value: 61500,
-      unit: "亿元",
-    },
-    {
-      icon: "zongxiaoliang",
-      zh: "2025年常驻人数",
-      en: "resident population in 2025",
-      value: 15600,
-      unit: "万人",
-    },
-  ],
+  totalView: mapViewConfig.totalView.map((item) => ({ ...item })),
 })
 
 let clockTimer = null
@@ -190,12 +162,7 @@ onMounted(() => {
   // 监听地图播放完成，执行事件
   emitter.$on("mapPlayComplete", handleMapPlayComplete)
   // 自动适配
-  assets.value = autofit.init({
-    dh: 1080,
-    dw: 1920,
-    el: "#large-screen",
-    resize: true,
-  })
+  assets.value = autofit.init(mapViewConfig.autofit)
   // 初始化资源
   initAssets(async () => {
     // 加载地图
