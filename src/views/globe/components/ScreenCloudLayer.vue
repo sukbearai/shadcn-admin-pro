@@ -21,7 +21,8 @@ let cloudMesh = null
 let material = null
 let texture = null
 let rafId = 0
-let startTime = 0
+let lastFrameTime = 0
+let cloudTravelOffset = 0
 let introActive = false
 let introProgress = 0
 let layerVisible = true
@@ -34,9 +35,33 @@ const CLOUD_RANGE_Y = CLOUD_SETTINGS.rangeY
 const CLOUD_SIZE_W = CLOUD_SETTINGS.size.width
 const CLOUD_SIZE_H = CLOUD_SETTINGS.size.height
 const CLOUD_SPEED = CLOUD_SETTINGS.speed
+const CLOUD_DISTRIBUTION = CLOUD_SETTINGS.horizontalDistribution || {}
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
+}
+
+function resetCloudMotion() {
+  lastFrameTime = performance.now()
+  cloudTravelOffset = 0
+}
+
+function resolveCloudX() {
+  const mode = CLOUD_DISTRIBUTION.mode || "uniform"
+  if (mode !== "left-right") {
+    return (Math.random() - 0.5) * CLOUD_RANGE_X
+  }
+
+  const halfRange = CLOUD_RANGE_X * 0.5
+  const centerGapRatio = clamp(Number(CLOUD_DISTRIBUTION.centerGapRatio ?? 0.3), 0, 0.9)
+  const edgePaddingRatio = clamp(Number(CLOUD_DISTRIBUTION.edgePaddingRatio ?? 0.08), 0, 0.45)
+  const leftWeight = clamp(Number(CLOUD_DISTRIBUTION.leftWeight ?? 0.5), 0, 1)
+  const minAbsX = (CLOUD_RANGE_X * centerGapRatio) * 0.5
+  const maxAbsX = Math.max(minAbsX + 1e-6, halfRange * (1 - edgePaddingRatio))
+  const absX = minAbsX + Math.random() * (maxAbsX - minAbsX)
+  const side = Math.random() < leftWeight ? -1 : 1
+
+  return side * absX
 }
 
 function createCloudMaterial(fog) {
@@ -86,7 +111,7 @@ function setupCloudMesh() {
 
   for (let i = 0; i < CLOUD_COUNT; i += 1) {
     const instanceGeometry = baseGeometry.clone()
-    const x = (Math.random() - 0.5) * CLOUD_RANGE_X
+    const x = resolveCloudX()
     const y = CLOUD_SETTINGS.baseY - Math.random() * CLOUD_RANGE_Y
     const z = CLOUD_SETTINGS.startZOffset + i * CLOUD_Z_STEP
     const scale = CLOUD_SETTINGS.size.scaleMin + Math.random() * CLOUD_SETTINGS.size.scaleSpan
@@ -118,13 +143,19 @@ function animate() {
   rafId = requestAnimationFrame(animate)
   if (!renderer || !camera || !scene) return
   const totalDistance = CLOUD_COUNT * CLOUD_Z_STEP
-  const elapsed = performance.now() - startTime
+  const now = performance.now()
+  if (!lastFrameTime) {
+    lastFrameTime = now
+  }
+  const deltaMs = clamp(now - lastFrameTime, 0, 100)
+  lastFrameTime = now
   const introOffset = introActive ? introProgress : 0
   const speedScale = introActive ? 1 + introProgress * CLOUD_SETTINGS.introSpeedScaleDelta : 1
 
+  cloudTravelOffset = (cloudTravelOffset + deltaMs * CLOUD_SPEED * speedScale) % totalDistance
   camera.position.x = CLOUD_SETTINGS.camera.baseX + introOffset * CLOUD_SETTINGS.camera.introDeltaX
   camera.position.y = CLOUD_SETTINGS.camera.baseY + introOffset * CLOUD_SETTINGS.camera.introDeltaY
-  camera.position.z = totalDistance - ((elapsed * CLOUD_SPEED * speedScale) % totalDistance)
+  camera.position.z = totalDistance - cloudTravelOffset
   camera.lookAt(
     CLOUD_SETTINGS.camera.lookAtX,
     CLOUD_SETTINGS.camera.lookAtY + introOffset * CLOUD_SETTINGS.camera.lookAtIntroDeltaY,
@@ -174,7 +205,7 @@ function init() {
   material = createCloudMaterial(fog)
   setupCloudMesh()
 
-  startTime = performance.now()
+  resetCloudMotion()
   animate()
   window.addEventListener("resize", resize)
 }
@@ -198,13 +229,19 @@ function destroy() {
   renderer = null
   scene = null
   camera = null
+  lastFrameTime = 0
+  cloudTravelOffset = 0
   introActive = false
   introProgress = 0
   layerVisible = false
 }
 
 function setIntroActive(active) {
-  introActive = Boolean(active)
+  const nextActive = Boolean(active)
+  if (nextActive && !introActive) {
+    resetCloudMotion()
+  }
+  introActive = nextActive
   if (!introActive) {
     introProgress = 0
   }
@@ -221,12 +258,14 @@ function setLayerVisible(visible) {
 function resetIntro() {
   introActive = false
   introProgress = 0
+  resetCloudMotion()
 }
 
 function stopAndHide() {
   introActive = false
   introProgress = 0
   layerVisible = false
+  resetCloudMotion()
   if (material?.uniforms?.opacity) {
     material.uniforms.opacity.value = 0
   }

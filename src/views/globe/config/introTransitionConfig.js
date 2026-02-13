@@ -159,7 +159,13 @@ const introTransitionConfig = {
     rangeX: 320,
     rangeY: 240,
     baseY: -95,
-    speed: 0.055,
+    speed: 0.095,
+    horizontalDistribution: {
+      mode: "left-right",
+      centerGapRatio: 0.36,
+      edgePaddingRatio: 0.08,
+      leftWeight: 0.5,
+    },
     size: {
       width: 220,
       height: 140,
@@ -194,7 +200,7 @@ const introTransitionConfig = {
       introBase: 0.34,
       introDelta: 0.2,
     },
-    introSpeedScaleDelta: 0.28,
+    introSpeedScaleDelta: 0.45,
   },
   transition: {
     cloud: {
