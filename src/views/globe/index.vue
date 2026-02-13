@@ -3,7 +3,7 @@
     <!-- 地图 -->
     <mapScene ref="mapSceneRef" :world-options="globeWorldOptions"></mapScene>
     <div class="large-screen-wrap" id="large-screen">
-      <m-header title="网络边界威胁感知" sub-text="Network Boundary Threat Perception">
+      <m-header title="恶意代码预警通报管理平台" sub-text="Malicious Code Warning Bulletin Management Platform">
         <!--左侧 天气（暂时注释，后续可恢复）
         <template v-slot:left>
           <div class="m-header-weather"><span>小雪</span><span>-4℃</span></div>
@@ -112,72 +112,30 @@
 </template>
 <script setup>
 import { shallowRef, ref, reactive, onMounted, onBeforeUnmount } from "vue"
-import mapScene from "@/views/map/map.vue"
+import mapScene from "./map.vue"
 import mHeader from "@/components/mHeader/index.vue"
 import mCountCard from "@/components/mCountCard/index.vue"
 import mMenu from "@/components/mMenu/index.vue"
 import mRadar from "@/components/mRadar/index.vue"
 import mMenuItem from "@/components/mMenuItem/index.vue"
 import mSvglineAnimation from "@/components/mSvglineAnimation/index.vue"
-import BulkCommoditySalesChart from "@/views/map/components/BulkCommoditySalesChart.vue"
-import YearlyEconomyTrend from "@/views/map/components/YearlyEconomyTrend.vue"
-import EconomicTrendChart from "@/views/map/components/EconomicTrendChart.vue"
-import DistrictEconomicIncome from "@/views/map/components/DistrictEconomicIncome.vue"
-import PurposeSpecialFunds from "@/views/map/components/PurposeSpecialFunds.vue"
-import ProportionPopulationConsumption from "@/views/map/components/ProportionPopulationConsumption.vue"
-import ElectricityUsage from "@/views/map/components/ElectricityUsage.vue"
-import QuarterlyGrowthSituation from "@/views/map/components/QuarterlyGrowthSituation.vue"
+import BulkCommoditySalesChart from "./components/BulkCommoditySalesChart.vue"
+import YearlyEconomyTrend from "./components/YearlyEconomyTrend.vue"
+import EconomicTrendChart from "./components/EconomicTrendChart.vue"
+import DistrictEconomicIncome from "./components/DistrictEconomicIncome.vue"
+import PurposeSpecialFunds from "./components/PurposeSpecialFunds.vue"
+import ProportionPopulationConsumption from "./components/ProportionPopulationConsumption.vue"
+import ElectricityUsage from "./components/ElectricityUsage.vue"
+import QuarterlyGrowthSituation from "./components/QuarterlyGrowthSituation.vue"
 
-import { Assets } from "@/views/map/assets.js"
+import { Assets } from "./assets.js"
+import globeWorldOptions from "./config/worldOptions.js"
 import emitter from "@/utils/emitter"
 import gsap from "gsap"
 import autofit from "autofit.js"
 
 const assets = shallowRef(null)
 const mapSceneRef = ref(null)
-const globeWorldOptions = {
-  rootName: "江苏省",
-  geoProjectionCenter: [119.486506, 32.983991],
-  geoProjectionScale: 75,
-  businessProvinceNames: ["江苏省"],
-  resourceNames: {
-    mapJson: "jiangsu",
-    mapStroke: "jiangsu",
-  },
-  mapFocusLabelInfo: {
-    name: "江苏省",
-    enName: "JIANGSU PROVINCE",
-    center: [119.486506, 29.8],
-  },
-  initialCameraPosition: [-12.8, 12.2, 27.8],
-  mainCameraState: {
-    position: [-0.17427287762525134, 10.6, 16.2],
-    target: [0, 0, 0],
-  },
-  childCameraState: {
-    position: [-0.35, 12.2, 15.8],
-    target: [0, 0, 0],
-  },
-  marketingCenters: [
-    {
-      id: "nanjing",
-      name: "南京",
-      enName: "NANJING",
-      labelName: "南京市",
-      provinceName: "江苏省",
-      cityName: "南京市",
-      lng: 118.767413,
-      lat: 32.041544,
-      value: 168,
-    },
-  ],
-  flyLineCenterId: "nanjing",
-  showOtherProvinceLabels: false,
-  showMainRegionLabels: true,
-  childMapScaleMultiplier: 1.6,
-  showChinaBaseMap: false,
-  showChinaBlurLine: false,
-}
 const state = reactive({
   // 进度
   progress: 0,

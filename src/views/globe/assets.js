@@ -56,6 +56,16 @@ export class Assets {
         name: "mapStroke",
         path: base_url + "assets/json/中华人民共和国.json",
       },
+      {
+        type: "File",
+        name: "jiangsu",
+        path: base_url + "assets/json/江苏省.json",
+      },
+      {
+        type: "File",
+        name: "jiangsuStroke",
+        path: base_url + "assets/json/江苏省-轮廓.json",
+      },
 
       { type: "Texture", name: "huiguang", path: huiguang },
       { type: "Texture", name: "rotationBorder1", path: rotationBorder1 },
