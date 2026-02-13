@@ -9,6 +9,7 @@ import { onMounted, onBeforeUnmount, ref } from "vue"
 import * as THREE from "three"
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import cloudTextureUrl from "@/assets/texture/cloud-layer.png"
+import introTransitionConfig from "../config/introTransitionConfig"
 
 const layerRef = ref(null)
 const canvasRef = ref(null)
@@ -21,14 +22,22 @@ let material = null
 let texture = null
 let rafId = 0
 let startTime = 0
+let introActive = false
+let introProgress = 0
+let layerVisible = true
 
-const CLOUD_COUNT = 1000
-const CLOUD_Z_STEP = 15
-const CLOUD_RANGE_X = 320
-const CLOUD_RANGE_Y = 260
-const CLOUD_SIZE_W = 220
-const CLOUD_SIZE_H = 140
-const CLOUD_SPEED = 0.08
+const CLOUD_SETTINGS = introTransitionConfig.cloudLayer
+const CLOUD_COUNT = CLOUD_SETTINGS.count
+const CLOUD_Z_STEP = CLOUD_SETTINGS.zStep
+const CLOUD_RANGE_X = CLOUD_SETTINGS.rangeX
+const CLOUD_RANGE_Y = CLOUD_SETTINGS.rangeY
+const CLOUD_SIZE_W = CLOUD_SETTINGS.size.width
+const CLOUD_SIZE_H = CLOUD_SETTINGS.size.height
+const CLOUD_SPEED = CLOUD_SETTINGS.speed
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
 
 function createCloudMaterial(fog) {
   const vertexShader = `
@@ -43,12 +52,14 @@ function createCloudMaterial(fog) {
     uniform vec3 fogColor;
     uniform float fogNear;
     uniform float fogFar;
+    uniform float opacity;
     varying vec2 vUv;
     void main() {
       float depth = gl_FragCoord.z / gl_FragCoord.w;
       float fogFactor = smoothstep(fogNear, fogFar, depth);
       vec4 color = texture2D(map, vUv);
-      color.a *= pow(gl_FragCoord.z, 20.0);
+      color.a *= pow(gl_FragCoord.z, ${CLOUD_SETTINGS.shader.alphaPow.toFixed(1)}) * opacity;
+      color.rgb *= ${CLOUD_SETTINGS.shader.colorBoost.toFixed(2)};
       gl_FragColor = mix(color, vec4(fogColor, color.a), fogFactor);
     }
   `
@@ -59,6 +70,7 @@ function createCloudMaterial(fog) {
       fogColor: { value: fog.color },
       fogNear: { value: fog.near },
       fogFar: { value: fog.far },
+      opacity: { value: 0 },
     },
     vertexShader,
     fragmentShader,
@@ -75,8 +87,11 @@ function setupCloudMesh() {
   for (let i = 0; i < CLOUD_COUNT; i += 1) {
     const instanceGeometry = baseGeometry.clone()
     const x = (Math.random() - 0.5) * CLOUD_RANGE_X
-    const y = -Math.random() * CLOUD_RANGE_Y
-    const z = i * CLOUD_Z_STEP
+    const y = CLOUD_SETTINGS.baseY - Math.random() * CLOUD_RANGE_Y
+    const z = CLOUD_SETTINGS.startZOffset + i * CLOUD_Z_STEP
+    const scale = CLOUD_SETTINGS.size.scaleMin + Math.random() * CLOUD_SETTINGS.size.scaleSpan
+    instanceGeometry.scale(scale, scale, 1)
+    instanceGeometry.rotateZ((Math.random() - 0.5) * CLOUD_SETTINGS.size.rotateZRange)
     instanceGeometry.translate(x, y, z)
     geometries.push(instanceGeometry)
   }
@@ -104,7 +119,24 @@ function animate() {
   if (!renderer || !camera || !scene) return
   const totalDistance = CLOUD_COUNT * CLOUD_Z_STEP
   const elapsed = performance.now() - startTime
-  camera.position.z = totalDistance - ((elapsed * CLOUD_SPEED) % totalDistance)
+  const introOffset = introActive ? introProgress : 0
+  const speedScale = introActive ? 1 + introProgress * CLOUD_SETTINGS.introSpeedScaleDelta : 1
+
+  camera.position.x = CLOUD_SETTINGS.camera.baseX + introOffset * CLOUD_SETTINGS.camera.introDeltaX
+  camera.position.y = CLOUD_SETTINGS.camera.baseY + introOffset * CLOUD_SETTINGS.camera.introDeltaY
+  camera.position.z = totalDistance - ((elapsed * CLOUD_SPEED * speedScale) % totalDistance)
+  camera.lookAt(
+    CLOUD_SETTINGS.camera.lookAtX,
+    CLOUD_SETTINGS.camera.lookAtY + introOffset * CLOUD_SETTINGS.camera.lookAtIntroDeltaY,
+    camera.position.z + CLOUD_SETTINGS.camera.lookAtZOffset
+  )
+
+  if (material?.uniforms?.opacity) {
+    const introOpacity = introActive
+      ? CLOUD_SETTINGS.opacity.introBase + introProgress * CLOUD_SETTINGS.opacity.introDelta
+      : CLOUD_SETTINGS.opacity.idle
+    material.uniforms.opacity.value = (layerVisible ? 1 : 0) * introOpacity
+  }
   renderer.render(scene, camera)
 }
 
@@ -116,11 +148,17 @@ function init() {
   const totalDistance = CLOUD_COUNT * CLOUD_Z_STEP
 
   scene = new THREE.Scene()
-  const fog = new THREE.Fog("#102736", 1, 1200)
+  const fog = new THREE.Fog(CLOUD_SETTINGS.fog.color, CLOUD_SETTINGS.fog.near, CLOUD_SETTINGS.fog.far)
   scene.fog = fog
 
-  camera = new THREE.PerspectiveCamera(70, width / height, 1, 1200)
-  camera.position.x = 12
+  camera = new THREE.PerspectiveCamera(
+    CLOUD_SETTINGS.camera.fov,
+    width / height,
+    CLOUD_SETTINGS.camera.near,
+    CLOUD_SETTINGS.camera.far
+  )
+  camera.position.x = CLOUD_SETTINGS.camera.baseX
+  camera.position.y = CLOUD_SETTINGS.camera.baseY
   camera.position.z = totalDistance
 
   renderer = new THREE.WebGLRenderer({
@@ -160,17 +198,57 @@ function destroy() {
   renderer = null
   scene = null
   camera = null
+  introActive = false
+  introProgress = 0
+  layerVisible = false
+}
+
+function setIntroActive(active) {
+  introActive = Boolean(active)
+  if (!introActive) {
+    introProgress = 0
+  }
+}
+
+function setIntroProgress(progress) {
+  introProgress = clamp(Number(progress) || 0, 0, 1)
+}
+
+function setLayerVisible(visible) {
+  layerVisible = Boolean(visible)
+}
+
+function resetIntro() {
+  introActive = false
+  introProgress = 0
+}
+
+function stopAndHide() {
+  introActive = false
+  introProgress = 0
+  layerVisible = false
+  if (material?.uniforms?.opacity) {
+    material.uniforms.opacity.value = 0
+  }
 }
 
 onMounted(init)
 onBeforeUnmount(destroy)
+
+defineExpose({
+  setIntroActive,
+  setIntroProgress,
+  setLayerVisible,
+  resetIntro,
+  stopAndHide,
+})
 </script>
 
 <style scoped lang="scss">
 .screen-cloud-layer {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 4;
   pointer-events: none;
   opacity: 1;
   canvas {

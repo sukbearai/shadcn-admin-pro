@@ -2,9 +2,11 @@
   <div class="large-screen">
     <!-- 地图 -->
     <mapScene ref="mapSceneRef" :world-options="globeWorldOptions"></mapScene>
+    <!-- 地球飞线过渡层 -->
+    <IntroEarthFlyline :active="state.showEarthIntro" ref="introEarthFlylineRef"></IntroEarthFlyline>
     <!-- 全屏云层（独立于地图） -->
-    <ScreenCloudLayer></ScreenCloudLayer>
-    <div class="large-screen-wrap" id="large-screen">
+    <ScreenCloudLayer ref="screenCloudLayerRef"></ScreenCloudLayer>
+    <div class="large-screen-wrap" id="large-screen" :class="{ 'is-earth-intro': state.showEarthIntro }">
       <m-header title="恶意代码预警通报管理平台" sub-text="Malicious Code Warning Bulletin Management Platform">
         <!--左侧 天气（暂时注释，后续可恢复）
         <template v-slot:left>
@@ -70,17 +72,24 @@
           :strokeWidth="2" :dir="[0, 1]" :length="50"
           path="M1 56.6105C1 31.5123 185.586 10.0503 451.904 1.35519C458.942 1.12543 465.781 4.00883 470.505 9.22964L484.991 25.2383C487.971 28.4775 492.938 30.4201 498.254 30.4201H720.142">
         </mSvglineAnimation>
-        <!-- 做箭头 -->
-        <div class="bottom-tray-arrow return-related">
+        <!-- 左箭头 -->
+        <div class="bottom-tray-arrow">
           <img src="@/assets/images/bottom-menu-arrow-big.svg" alt="" />
           <img src="@/assets/images/bottom-menu-arrow-small.svg" alt="" />
         </div>
-        <!-- 底部菜单 -->
-        <div class="bottom-menu return-related">
-          <div class="bottom-menu-item is-active return-btn" @click="goBack"><span>返回上一级</span></div>
+        <!-- 底部菜单（所有按钮放在同一对箭头中） -->
+        <div class="bottom-menu bottom-menu-group">
+          <div class="bottom-menu-item is-active switch-view-btn"
+            :class="{ 'is-disabled': state.isViewSwitching || (state.showEarthIntro && !state.awaitingChinaClick) }"
+            @click="toggleView">
+            <span>切换视图</span>
+          </div>
+          <div class="bottom-menu-item is-active return-btn return-related" @click="goBack">
+            <span>返回上一级</span>
+          </div>
         </div>
         <!-- 右箭头 -->
-        <div class="bottom-tray-arrow is-reverse return-related">
+        <div class="bottom-tray-arrow is-reverse">
           <img src="@/assets/images/bottom-menu-arrow-big.svg" alt="" />
           <img src="@/assets/images/bottom-menu-arrow-small.svg" alt="" />
         </div>
@@ -113,7 +122,7 @@
   </div>
 </template>
 <script setup>
-import { shallowRef, ref, reactive, onMounted, onBeforeUnmount } from "vue"
+import { shallowRef, ref, reactive, onMounted, onBeforeUnmount, nextTick } from "vue"
 import mapScene from "./map.vue"
 import mHeader from "@/components/mHeader/index.vue"
 import mCountCard from "@/components/mCountCard/index.vue"
@@ -129,7 +138,9 @@ import PurposeSpecialFunds from "./components/PurposeSpecialFunds.vue"
 import ProportionPopulationConsumption from "./components/ProportionPopulationConsumption.vue"
 import ElectricityUsage from "./components/ElectricityUsage.vue"
 import QuarterlyGrowthSituation from "./components/QuarterlyGrowthSituation.vue"
+import introTransitionConfig from "./config/introTransitionConfig"
 import ScreenCloudLayer from "./components/ScreenCloudLayer.vue"
+import IntroEarthFlyline from "./components/IntroEarthFlyline.vue"
 
 import { Assets } from "./assets.js"
 import globeWorldOptions from "./config/worldOptions.js"
@@ -139,9 +150,25 @@ import autofit from "autofit.js"
 
 const assets = shallowRef(null)
 const mapSceneRef = ref(null)
+const screenCloudLayerRef = ref(null)
+const introEarthFlylineRef = ref(null)
+const INTRO_TRANSITION_SETTINGS = introTransitionConfig.transition
+const CLOUD_TRANSITION_SETTINGS = INTRO_TRANSITION_SETTINGS.cloud || {}
+const loadingProgress = reactive({
+  assets: 0,
+  earth: 0,
+})
 const state = reactive({
   // 进度
   progress: 0,
+  // 地球飞线过渡动画显示
+  showEarthIntro: false,
+  // 是否等待点击中国进入地图
+  awaitingChinaClick: false,
+  // 是否已触发场景切换
+  hasStartedMapTransition: false,
+  // 视图切换中
+  isViewSwitching: false,
   // 当前顶部导航索引
   activeIndex: "1",
   // 头部日期
@@ -168,6 +195,164 @@ const state = reactive({
 })
 
 let clockTimer = null
+let earthIntroReadyPromise = null
+let disposeEarthChartClick = null
+
+const LOADING_WEIGHTS = {
+  assets: 0.82,
+  earth: 0.18,
+}
+const CHINA_REGION_NAMES = new Set([
+  "china",
+  "中华人民共和国",
+  "中国",
+  "people's republic of china",
+  "people republic of china",
+])
+
+function clamp01(value) {
+  return Math.min(1, Math.max(0, Number(value) || 0))
+}
+
+function syncLoadingProgress() {
+  const weightedProgress = loadingProgress.assets * LOADING_WEIGHTS.assets + loadingProgress.earth * LOADING_WEIGHTS.earth
+  state.progress = Math.min(100, Math.floor(weightedProgress * 100))
+}
+
+function tweenLoadingProgress(key, value, duration = 0.32) {
+  const target = clamp01(value)
+  gsap.to(loadingProgress, {
+    [key]: target,
+    duration,
+    ease: "power2.out",
+    onUpdate: syncLoadingProgress,
+  })
+}
+
+function waitNextFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve())
+  })
+}
+
+function normalizeCountryName(value) {
+  return `${value ?? ""}`.trim().toLowerCase()
+}
+
+function resolveClickedCountryName(params) {
+  const userData = params?.userData || {}
+  return userData.name || params?.name || userData.country || userData.countryName || ""
+}
+
+function isChinaRegionClick(params) {
+  if (!params || params?.userData?.type !== "country") {
+    return false
+  }
+  const normalizedName = normalizeCountryName(resolveClickedCountryName(params))
+  if (!normalizedName) {
+    return false
+  }
+  return CHINA_REGION_NAMES.has(normalizedName) || normalizedName.includes("china")
+}
+
+function unbindEarthIntroClick() {
+  if (typeof disposeEarthChartClick === "function") {
+    disposeEarthChartClick()
+  }
+  disposeEarthChartClick = null
+}
+
+function bindEarthIntroClick() {
+  const introPlayer = introEarthFlylineRef.value
+  if (!introPlayer?.onChartClick) {
+    return
+  }
+  unbindEarthIntroClick()
+  disposeEarthChartClick = introPlayer.onChartClick((event, params) => {
+    if (!state.awaitingChinaClick || state.hasStartedMapTransition) {
+      return
+    }
+    if (!isChinaRegionClick(params)) {
+      return
+    }
+    startMapTransition()
+  })
+}
+
+async function preloadEarthIntro() {
+  await nextTick()
+  const introPlayer = introEarthFlylineRef.value
+  if (!introPlayer?.waitUntilReady) {
+    tweenLoadingProgress("earth", 1, 0.2)
+    return
+  }
+  try {
+    await introPlayer.waitUntilReady({
+      onProgress: (progress) => {
+        tweenLoadingProgress("earth", progress, 0.22)
+      },
+    })
+  } catch (error) {
+    console.warn("[earth-flyline] preload failed", error)
+  } finally {
+    tweenLoadingProgress("earth", 1, 0.2)
+  }
+}
+
+async function prepareEarthIntroReveal() {
+  const introPlayer = introEarthFlylineRef.value
+  if (!introPlayer?.waitUntilRenderable) {
+    return
+  }
+  try {
+    await introPlayer.waitUntilRenderable({ timeout: 9000 })
+  } catch (error) {
+    console.warn("[earth-flyline] wait renderable failed", error)
+  }
+  introPlayer?.ensureVisible?.()
+}
+
+async function startMapTransition() {
+  if (state.hasStartedMapTransition) {
+    return
+  }
+
+  state.hasStartedMapTransition = true
+  state.awaitingChinaClick = false
+  unbindEarthIntroClick()
+
+  try {
+    await playEarthFlylineIntro({
+      keepVisible: true,
+      ...INTRO_TRANSITION_SETTINGS.startMapTransition,
+    })
+  } finally {
+    mapSceneRef.value?.play?.()
+    await waitNextFrame()
+    state.showEarthIntro = false
+    screenCloudLayerRef.value?.stopAndHide?.()
+    introEarthFlylineRef.value?.resetViewState?.()
+  }
+}
+
+async function switchToEarthIntro() {
+  unbindEarthIntroClick()
+  state.awaitingChinaClick = false
+  state.hasStartedMapTransition = false
+  screenCloudLayerRef.value?.stopAndHide?.()
+  state.showEarthIntro = true
+  await nextTick()
+  introEarthFlylineRef.value?.resetViewState?.()
+  introEarthFlylineRef.value?.focusChina?.()
+  introEarthFlylineRef.value?.ensureVisible?.()
+  if (isCloudIdleVisible()) {
+    screenCloudLayerRef.value?.setIntroActive?.(false)
+    screenCloudLayerRef.value?.setIntroProgress?.(0)
+    screenCloudLayerRef.value?.setLayerVisible?.(true)
+  }
+  bindEarthIntroClick()
+  state.awaitingChinaClick = true
+}
 
 function formatDateTime() {
   const now = new Date()
@@ -185,8 +370,19 @@ function updateHeaderDateTime() {
   state.currentTime = time
 }
 
+function isCloudEnabled() {
+  return CLOUD_TRANSITION_SETTINGS.enabled !== false
+}
+
+function isCloudIdleVisible() {
+  return isCloudEnabled() && CLOUD_TRANSITION_SETTINGS.idleVisible !== false
+}
+
 onMounted(() => {
   updateHeaderDateTime()
+  syncLoadingProgress()
+  screenCloudLayerRef.value?.stopAndHide?.()
+  earthIntroReadyPromise = preloadEarthIntro()
   clockTimer = setInterval(() => {
     updateHeaderDateTime()
   }, 1000)
@@ -194,7 +390,7 @@ onMounted(() => {
   // 监听地图播放完成，执行事件
   emitter.$on("mapPlayComplete", handleMapPlayComplete)
   // 自动适配
-  assets.value = autofit.init({
+  autofit.init({
     dh: 1080,
     dw: 1920,
     el: "#large-screen",
@@ -202,16 +398,38 @@ onMounted(() => {
   })
   // 初始化资源
   initAssets(async () => {
+    await earthIntroReadyPromise
     // 加载地图
     emitter.$emit("loadMap", assets.value)
+    // 等待地球场景可渲染，避免loading结束后空窗
+    await prepareEarthIntroReveal()
+    // loading结束后默认展示地球，等待用户点击中国
+    state.showEarthIntro = true
+    await nextTick()
+    introEarthFlylineRef.value?.focusChina?.()
+    introEarthFlylineRef.value?.ensureVisible?.()
+    bindEarthIntroClick()
     // 隐藏loading
     await hideLoading()
-    // 播放场景
-    mapSceneRef.value.play()
+    // 首屏云层是否展示由配置控制
+    if (isCloudIdleVisible()) {
+      screenCloudLayerRef.value?.setIntroActive?.(false)
+      screenCloudLayerRef.value?.setIntroProgress?.(0)
+      screenCloudLayerRef.value?.setLayerVisible?.(true)
+    } else {
+      screenCloudLayerRef.value?.stopAndHide?.()
+    }
+    state.awaitingChinaClick = true
+    state.hasStartedMapTransition = false
   })
 })
 onBeforeUnmount(() => {
   emitter.$off("mapPlayComplete", handleMapPlayComplete)
+  unbindEarthIntroClick()
+  state.awaitingChinaClick = false
+  state.hasStartedMapTransition = false
+  screenCloudLayerRef.value?.resetIntro?.()
+  autofit.off("#large-screen")
   if (clockTimer) {
     clearInterval(clockTimer)
     clockTimer = null
@@ -220,21 +438,14 @@ onBeforeUnmount(() => {
 // 初始化加载资源
 function initAssets(onLoadCallback) {
   assets.value = new Assets()
-  // 资源加载进度
-  let params = {
-    progress: 0,
-  }
+
   assets.value.instance.on("onProgress", (path, itemsLoaded, itemsTotal) => {
-    let p = Math.floor((itemsLoaded / itemsTotal) * 100)
-    gsap.to(params, {
-      progress: p,
-      onUpdate: () => {
-        state.progress = Math.floor(params.progress)
-      },
-    })
+    const progress = itemsTotal > 0 ? itemsLoaded / itemsTotal : 0
+    tweenLoadingProgress("assets", progress)
   })
   // 资源加载完成
   assets.value.instance.on("onLoad", () => {
+    tweenLoadingProgress("assets", 1, 0.2)
     onLoadCallback && onLoadCallback()
   })
 }
@@ -244,23 +455,24 @@ async function hideLoading() {
   return new Promise((resolve, reject) => {
     let tl = gsap.timeline()
     tl.to(".loading-text span", {
-      y: "200%",
+      y: "120%",
       opacity: 0,
-      ease: "power4.inOut",
-      duration: 2,
-      stagger: 0.2,
+      ease: "power2.inOut",
+      duration: 0.65,
+      stagger: 0.06,
     })
-    tl.to(".loading-progress", { opacity: 0, ease: "power4.inOut", duration: 2 }, "<")
+    tl.to(".loading-progress", { opacity: 0, ease: "power2.inOut", duration: 0.45 }, "<")
     tl.to(
       ".loading",
       {
         opacity: 0,
-        ease: "power4.inOut",
+        duration: 0.45,
+        ease: "power2.out",
         onComplete: () => {
           resolve()
         },
       },
-      "-=1"
+      "-=0.18"
     )
   })
 }
@@ -271,6 +483,89 @@ function handleMenuSelect(index) {
 
 function goBack() {
   mapSceneRef.value && mapSceneRef.value.goBack()
+}
+
+async function toggleView() {
+  if (state.isViewSwitching) {
+    return
+  }
+  if (state.progress < 100) {
+    return
+  }
+
+  state.isViewSwitching = true
+  try {
+    if (state.showEarthIntro) {
+      if (!state.awaitingChinaClick) {
+        return
+      }
+      await startMapTransition()
+      return
+    }
+    await switchToEarthIntro()
+  } finally {
+    state.isViewSwitching = false
+  }
+}
+
+async function playEarthFlylineIntro(options = {}) {
+  const cloudEnabled = isCloudEnabled()
+  const defaultPlayConfig = INTRO_TRANSITION_SETTINGS.playDefaults
+  const {
+    keepVisible = false,
+    onProgress,
+    fadeOutDuration = defaultPlayConfig.fadeOutDuration,
+    introDuration = defaultPlayConfig.introDuration,
+    holdDuration = defaultPlayConfig.holdDuration,
+  } = options
+  const CLOUD_START_PROGRESS = Number(CLOUD_TRANSITION_SETTINGS.startProgress ?? 0)
+  const introStepDuration = Math.max(0.1, Number(introDuration) || 0.1)
+  const introHoldDuration = Math.max(0, Number(holdDuration) || 0)
+  const totalDuration = introStepDuration + introHoldDuration
+  const cloudPushStartProgress = totalDuration > 0 ? introHoldDuration / totalDuration : 0
+
+  if (!keepVisible) {
+    state.showEarthIntro = true
+    await nextTick()
+  }
+
+  const cloudLayer = screenCloudLayerRef.value
+  cloudLayer?.setLayerVisible?.(false)
+  cloudLayer?.setIntroActive?.(false)
+  cloudLayer?.setIntroProgress?.(0)
+
+  try {
+    const introPlayer = introEarthFlylineRef.value
+    if (!introPlayer?.play) {
+      return
+    }
+    await introPlayer.play({
+      duration: introDuration,
+      holdDuration,
+      fadeOutDuration,
+      onProgress: (progress) => {
+        typeof onProgress === "function" && onProgress(progress)
+        if (!cloudEnabled) {
+          cloudLayer?.stopAndHide?.()
+          return
+        }
+        if (progress < CLOUD_START_PROGRESS) {
+          cloudLayer?.setLayerVisible?.(false)
+          cloudLayer?.setIntroActive?.(false)
+          cloudLayer?.setIntroProgress?.(0)
+          return
+        }
+        const normalizedCloudProgress = progress <= cloudPushStartProgress
+          ? 0
+          : (progress - cloudPushStartProgress) / (1 - cloudPushStartProgress)
+        cloudLayer?.setLayerVisible?.(true)
+        cloudLayer?.setIntroActive?.(true)
+        cloudLayer?.setIntroProgress?.(normalizedCloudProgress)
+      },
+    })
+  } finally {
+    cloudLayer?.stopAndHide?.()
+  }
 }
 // 地图开始动画播放完成
 function handleMapPlayComplete() {
@@ -337,13 +632,41 @@ function handleMapPlayComplete() {
   }
 }
 
+.large-screen-wrap {
+  z-index: 5;
+}
+
 .bottom-tray {
+  .bottom-menu-group {
+    padding: 0 14px;
+    gap: 10px;
+  }
+
   .return-related {
     display: none !important;
   }
 
   .return-related.is-visible {
-    display: flex !important;
+    display: block !important;
+  }
+
+  .switch-view-btn,
+  .return-btn {
+    width: 120px;
+    span {
+      width: 120px;
+    }
+  }
+
+  .switch-view-btn.is-disabled {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+}
+
+.large-screen-wrap.is-earth-intro {
+  .return-related {
+    display: none !important;
   }
 }
 
@@ -388,39 +711,4 @@ function handleMapPlayComplete() {
   margin-left: -5px;
 }
 
-/* 初始化动画开始位置 */
-.m-header {
-  transform: translateY(-100%);
-  opacity: 0;
-}
-
-.top-menu {
-  transform: translateY(-250%);
-  opacity: 0;
-}
-
-.count-card {
-  transform: translateY(150%);
-  opacity: 0;
-}
-
-.left-card {
-  transform: translateX(-150%);
-  opacity: 0;
-}
-
-.right-card {
-  transform: translateX(150%);
-  opacity: 0;
-}
-
-.bottom-tray {
-  transform: translateY(100%);
-  opacity: 0;
-}
-
-.bottom-radar {
-  transform: translateY(100%);
-  opacity: 0;
-}
 </style>
