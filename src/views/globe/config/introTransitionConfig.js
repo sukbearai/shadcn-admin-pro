@@ -5,6 +5,7 @@ const introTransitionConfig = {
       lon: 104,
       lat: 35,
       tiltX: -0.22,
+      rollZ: 0.18,
     },
     preloadProgress: {
       mapLoading: 0.08,
@@ -93,6 +94,16 @@ const introTransitionConfig = {
       normalSize: 1.5,
       centerColor: "#fef99e",
       centerSize: 2.1,
+    },
+    textMark: {
+      style: {
+        fontSize: 20,
+        color: "#ffffff",
+      },
+      centerStyle: {
+        fontSize: 22,
+        color: "#ffdf7a",
+      },
     },
     animation: {
       cameraPushScale: 0.52,

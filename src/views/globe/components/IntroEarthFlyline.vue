@@ -135,7 +135,7 @@ function focusGlobeByLonLat(lon, lat) {
   container.rotation.order = "YXZ"
   container.rotation.x = INTRO_EARTH_SETTINGS.focusChina.tiltX
   container.rotation.y = normalizeRadian(targetYaw - cameraYaw)
-  container.rotation.z = 0
+  container.rotation.z = Number(INTRO_EARTH_SETTINGS.focusChina.rollZ ?? 0)
   container.updateMatrixWorld?.(true)
 }
 
@@ -295,6 +295,7 @@ async function loadIntroMapGeoJson() {
 
 function createIntroConfig() {
   const sceneConfig = INTRO_EARTH_SETTINGS.sceneConfig
+  const textMarkConfig = INTRO_EARTH_SETTINGS.textMark || {}
   return {
     dom: stageRef.value,
     map: INTRO_MAP_NAME,
@@ -320,12 +321,19 @@ function createIntroConfig() {
       scatterStyle: { ...sceneConfig.scatterStyle },
       hoverRegionStyle: { ...sceneConfig.hoverRegionStyle },
       barStyle: { ...sceneConfig.barStyle },
+      textMark: {
+        style: { ...(textMarkConfig.style || {}) },
+      },
     },
   }
 }
 
+function getFlyLineCenter() {
+  return marketingCenters.find((item) => item.id === FLYLINE_CENTER_ID) || marketingCenters[0]
+}
+
 function createIntroFlyLineData() {
-  const center = marketingCenters.find((item) => item.id === FLYLINE_CENTER_ID) || marketingCenters[0]
+  const center = getFlyLineCenter()
   if (!center) {
     return []
   }
@@ -353,7 +361,7 @@ function createIntroFlyLineData() {
 }
 
 function createIntroPointData() {
-  const center = marketingCenters.find((item) => item.id === FLYLINE_CENTER_ID) || marketingCenters[0]
+  const center = getFlyLineCenter()
   return marketingCenters.map((item) => {
     const isCenter = center && item.id === center.id
     return {
@@ -366,6 +374,25 @@ function createIntroPointData() {
       },
     }
   })
+}
+
+function createIntroTextMarkData() {
+  const center = getFlyLineCenter()
+  if (!center) {
+    return []
+  }
+  const textMarkConfig = INTRO_EARTH_SETTINGS.textMark || {}
+  return [
+    {
+      id: `intro-textmark-${center.id}`,
+      text: center.labelName || center.cityName || center.name || "南京市",
+      position: {
+        lon: center.lng,
+        lat: center.lat,
+      },
+      style: { ...(textMarkConfig.centerStyle || {}) },
+    },
+  ]
 }
 
 async function initIntroScene() {
@@ -405,6 +432,7 @@ async function initIntroScene() {
     await Promise.all([
       chartScene.setData("flyLine", createIntroFlyLineData()),
       chartScene.setData("point", createIntroPointData()),
+      chartScene.setData("textMark", createIntroTextMarkData()),
     ])
     focusChina()
     captureBaseViewState()
