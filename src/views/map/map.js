@@ -213,6 +213,8 @@ export class World extends Mini3d {
       typeof options.childMapScaleMultiplier === "number" ? options.childMapScaleMultiplier : 1
     // 缓存加载失败的地图 URL（避免重复 404 请求和重复告警）
     this.failedMapUrlSet = new Set()
+    // 本地下钻目录是否可用（首次 404 后自动关闭，避免每次点击都请求不存在目录）
+    this.localBoundMapFetchEnabled = true
     // 远程地图源是否可用（403 后自动关闭）
     this.remoteMapFetchEnabled = true
 
@@ -1122,7 +1124,7 @@ export class World extends Mini3d {
 
       for (let i = 0; i < sources.length; i += 1) {
         const source = sources[i]
-        if (source.type === "local" && this.failedMapUrlSet.has(source.url)) {
+        if (source.type.startsWith("local") && this.failedMapUrlSet.has(source.url)) {
           continue
         }
         try {
@@ -1130,10 +1132,13 @@ export class World extends Mini3d {
           callback && callback(data)
           return
         } catch (error) {
-          const isLocal404 = source.type === "local" && error?.status === 404
+          const isLocal404 = source.type.startsWith("local") && error?.status === 404
           const isFirstLocal404 = isLocal404 && !this.failedMapUrlSet.has(source.url)
           if (isLocal404) {
             this.failedMapUrlSet.add(source.url)
+          }
+          if (source.type === "localBound" && error?.status === 404) {
+            this.localBoundMapFetchEnabled = false
           }
           if (source.type === "remote" && error?.status === 403) {
             this.remoteMapFetchEnabled = false
@@ -1162,11 +1167,18 @@ export class World extends Mini3d {
     const suffix = resolveChildMapSuffix(userData.childrenNum)
     const fileName = `${userData.adcode}${suffix}`
     const baseUrl = import.meta.env.BASE_URL
-    const sources = [{ type: "local", url: `${baseUrl}assets/json/areas_v3/bound/${fileName}` }]
+    const sources = []
+
+    if (this.localBoundMapFetchEnabled) {
+      sources.push({
+        type: "localBound",
+        url: `${baseUrl}assets/json/areas_v3/bound/${fileName}`,
+      })
+    }
 
     if (userData?.name) {
       sources.push({
-        type: "local",
+        type: "localName",
         url: `${baseUrl}assets/json/${encodeURIComponent(userData.name)}.json`,
       })
     }

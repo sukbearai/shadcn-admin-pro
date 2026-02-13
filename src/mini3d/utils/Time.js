@@ -32,6 +32,6 @@ export class Time extends EventEmitter {
     this.raf.resume();
   }
   isActive() {
-    this.raf.isActive();
+    return this.raf.isActive();
   }
 }

@@ -162,7 +162,7 @@ onMounted(() => {
   // 监听地图播放完成，执行事件
   emitter.$on("mapPlayComplete", handleMapPlayComplete)
   // 自动适配
-  assets.value = autofit.init(mapViewConfig.autofit)
+  autofit.init(mapViewConfig.autofit)
   // 初始化资源
   initAssets(async () => {
     // 加载地图
@@ -175,6 +175,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   emitter.$off("mapPlayComplete", handleMapPlayComplete)
+  autofit.off("#large-screen")
   if (clockTimer) {
     clearInterval(clockTimer)
     clockTimer = null
