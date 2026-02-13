@@ -86,7 +86,7 @@
             <span>切换地图</span>
           </div>
           <div class="bottom-menu-item is-active return-btn return-related" @click="goBack">
-            <span>返回上一级</span>
+            <span>返回上级</span>
           </div>
         </div>
         <!-- 右箭头 -->

@@ -8,7 +8,7 @@
         <template v-slot:left>
           <div class="m-header-weather"><span>小雪</span><span>-4℃</span></div>
         </template>
-        -->
+-->
         <!--右侧 日期 -->
         <template v-slot:right>
           <div class="m-header-date"><span>{{ state.currentDate }}</span><span>{{ state.currentTime }}</span></div>
@@ -75,7 +75,7 @@
         </div>
         <!-- 底部菜单 -->
         <div class="bottom-menu return-related">
-          <div class="bottom-menu-item is-active return-btn" @click="goBack"><span>返回上一级</span></div>
+          <div class="bottom-menu-item is-active return-btn" @click="goBack"><span>返回上级</span></div>
         </div>
         <!-- 右箭头 -->
         <div class="bottom-tray-arrow is-reverse return-related">
