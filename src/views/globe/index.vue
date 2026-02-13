@@ -152,8 +152,15 @@ const assets = shallowRef(null)
 const mapSceneRef = ref(null)
 const screenCloudLayerRef = ref(null)
 const introEarthFlylineRef = ref(null)
+const INTRO_EARTH_SETTINGS = introTransitionConfig.introEarth || {}
 const INTRO_TRANSITION_SETTINGS = introTransitionConfig.transition
 const CLOUD_TRANSITION_SETTINGS = INTRO_TRANSITION_SETTINGS.cloud || {}
+const LOADING_SETTINGS = INTRO_TRANSITION_SETTINGS.loading || {}
+const LOADING_TWEEN_SETTINGS = LOADING_SETTINGS.tweenDuration || {}
+const LOADING_HIDE_SETTINGS = LOADING_SETTINGS.hideAnimation || {}
+const CHINA_CLICK_SETTINGS = INTRO_EARTH_SETTINGS.clickToMap || {}
+const CHINA_REGION_TYPE = CHINA_CLICK_SETTINGS.chinaRegionType || "country"
+const EARTH_RENDERABLE_TIMEOUT = Number(INTRO_EARTH_SETTINGS.mapData?.renderableTimeout ?? 9000)
 const loadingProgress = reactive({
   assets: 0,
   earth: 0,
@@ -199,16 +206,15 @@ let earthIntroReadyPromise = null
 let disposeEarthChartClick = null
 
 const LOADING_WEIGHTS = {
-  assets: 0.82,
-  earth: 0.18,
+  assets: Number(LOADING_SETTINGS.weights?.assets ?? 0.82),
+  earth: Number(LOADING_SETTINGS.weights?.earth ?? 0.18),
 }
-const CHINA_REGION_NAMES = new Set([
-  "china",
-  "中华人民共和国",
-  "中国",
-  "people's republic of china",
-  "people republic of china",
-])
+const CHINA_REGION_NAMES = new Set(
+  (Array.isArray(CHINA_CLICK_SETTINGS.chinaRegionNames) && CHINA_CLICK_SETTINGS.chinaRegionNames.length
+    ? CHINA_CLICK_SETTINGS.chinaRegionNames
+    : ["china", "中华人民共和国", "中国", "people's republic of china", "people republic of china"]
+  ).map((name) => `${name ?? ""}`.trim().toLowerCase())
+)
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, Number(value) || 0))
@@ -219,11 +225,12 @@ function syncLoadingProgress() {
   state.progress = Math.min(100, Math.floor(weightedProgress * 100))
 }
 
-function tweenLoadingProgress(key, value, duration = 0.32) {
+function tweenLoadingProgress(key, value, duration) {
+  const tweenDuration = Number(duration ?? LOADING_TWEEN_SETTINGS.default ?? 0.32)
   const target = clamp01(value)
   gsap.to(loadingProgress, {
     [key]: target,
-    duration,
+    duration: tweenDuration,
     ease: "power2.out",
     onUpdate: syncLoadingProgress,
   })
@@ -245,7 +252,7 @@ function resolveClickedCountryName(params) {
 }
 
 function isChinaRegionClick(params) {
-  if (!params || params?.userData?.type !== "country") {
+  if (!params || params?.userData?.type !== CHINA_REGION_TYPE) {
     return false
   }
   const normalizedName = normalizeCountryName(resolveClickedCountryName(params))
@@ -283,19 +290,19 @@ async function preloadEarthIntro() {
   await nextTick()
   const introPlayer = introEarthFlylineRef.value
   if (!introPlayer?.waitUntilReady) {
-    tweenLoadingProgress("earth", 1, 0.2)
+    tweenLoadingProgress("earth", 1, LOADING_TWEEN_SETTINGS.complete)
     return
   }
   try {
     await introPlayer.waitUntilReady({
       onProgress: (progress) => {
-        tweenLoadingProgress("earth", progress, 0.22)
+        tweenLoadingProgress("earth", progress, LOADING_TWEEN_SETTINGS.earthProgress)
       },
     })
   } catch (error) {
     console.warn("[earth-flyline] preload failed", error)
   } finally {
-    tweenLoadingProgress("earth", 1, 0.2)
+    tweenLoadingProgress("earth", 1, LOADING_TWEEN_SETTINGS.complete)
   }
 }
 
@@ -305,7 +312,7 @@ async function prepareEarthIntroReveal() {
     return
   }
   try {
-    await introPlayer.waitUntilRenderable({ timeout: 9000 })
+    await introPlayer.waitUntilRenderable({ timeout: EARTH_RENDERABLE_TIMEOUT })
   } catch (error) {
     console.warn("[earth-flyline] wait renderable failed", error)
   }
@@ -445,34 +452,40 @@ function initAssets(onLoadCallback) {
   })
   // 资源加载完成
   assets.value.instance.on("onLoad", () => {
-    tweenLoadingProgress("assets", 1, 0.2)
+    tweenLoadingProgress("assets", 1, LOADING_TWEEN_SETTINGS.complete)
     onLoadCallback && onLoadCallback()
   })
 }
 
 // 隐藏loading
 async function hideLoading() {
+  const textTranslateY = LOADING_HIDE_SETTINGS.textTranslateY || "120%"
+  const textDuration = Number(LOADING_HIDE_SETTINGS.textDuration ?? 0.65)
+  const textStagger = Number(LOADING_HIDE_SETTINGS.textStagger ?? 0.06)
+  const progressDuration = Number(LOADING_HIDE_SETTINGS.progressDuration ?? 0.45)
+  const layerDuration = Number(LOADING_HIDE_SETTINGS.layerDuration ?? 0.45)
+  const overlapOffset = Number(LOADING_HIDE_SETTINGS.overlapOffset ?? 0.18)
   return new Promise((resolve, reject) => {
     let tl = gsap.timeline()
     tl.to(".loading-text span", {
-      y: "120%",
+      y: textTranslateY,
       opacity: 0,
       ease: "power2.inOut",
-      duration: 0.65,
-      stagger: 0.06,
+      duration: textDuration,
+      stagger: textStagger,
     })
-    tl.to(".loading-progress", { opacity: 0, ease: "power2.inOut", duration: 0.45 }, "<")
+    tl.to(".loading-progress", { opacity: 0, ease: "power2.inOut", duration: progressDuration }, "<")
     tl.to(
       ".loading",
       {
         opacity: 0,
-        duration: 0.45,
+        duration: layerDuration,
         ease: "power2.out",
         onComplete: () => {
           resolve()
         },
       },
-      "-=0.18"
+      `-=${overlapOffset}`
     )
   })
 }

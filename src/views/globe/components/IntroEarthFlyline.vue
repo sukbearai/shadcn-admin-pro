@@ -33,9 +33,15 @@ const chartClickListeners = new Set()
 
 const INTRO_EARTH_SETTINGS = introTransitionConfig.introEarth
 const INTRO_MAP_NAME = INTRO_EARTH_SETTINGS.mapName
+const INTRO_MAP_DATA_SETTINGS = INTRO_EARTH_SETTINGS.mapData || {}
+const INTRO_ANIMATION_SETTINGS = INTRO_EARTH_SETTINGS.animation || {}
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
+}
+
+function resolveFiniteNumber(value, fallback) {
+  return Number.isFinite(value) ? value : Number(fallback) || 0
 }
 
 function emitReadyProgress(value) {
@@ -219,8 +225,13 @@ function resetViewState() {
     container.rotation.y = sceneBaseState.containerRotation.y
     container.rotation.z = sceneBaseState.containerRotation.z
   }
+  const lookAt = INTRO_ANIMATION_SETTINGS.lookAt || {}
   focusChina()
-  camera.lookAt(0, 0, 0)
+  camera.lookAt(
+    resolveFiniteNumber(lookAt.x, 0),
+    resolveFiniteNumber(lookAt.y, 0),
+    resolveFiniteNumber(lookAt.z, 0)
+  )
   container.updateMatrixWorld?.(true)
   resetIntroLayer()
 }
@@ -266,16 +277,34 @@ function normalizeFeatureCollection(raw) {
 
 async function loadIntroMapGeoJson() {
   const baseUrl = import.meta.env.BASE_URL || "/"
-  const urlCandidates = [
-    `${baseUrl}assets/json/world.json`,
-    `${baseUrl}assets/json/${encodeURIComponent("中华人民共和国.json")}`,
-    `${baseUrl}assets/json/中华人民共和国.json`,
-  ]
+  const sourcePaths = Array.isArray(INTRO_MAP_DATA_SETTINGS.sourcePaths) && INTRO_MAP_DATA_SETTINGS.sourcePaths.length
+    ? INTRO_MAP_DATA_SETTINGS.sourcePaths
+    : ["assets/json/world.json", "assets/json/中华人民共和国.json"]
+  const useEncodedFallback = INTRO_MAP_DATA_SETTINGS.useEncodedFallback !== false
+  const fetchOptions = {
+    referrerPolicy: "no-referrer",
+    ...(INTRO_MAP_DATA_SETTINGS.fetchOptions || {}),
+  }
+  const urlCandidates = []
+  sourcePaths.forEach((pathValue) => {
+    const path = `${pathValue || ""}`.replace(/^\//, "")
+    if (!path) {
+      return
+    }
+    urlCandidates.push(`${baseUrl}${path}`)
+    if (!useEncodedFallback) {
+      return
+    }
+    const encodedPath = encodeURI(path)
+    if (encodedPath !== path) {
+      urlCandidates.push(`${baseUrl}${encodedPath}`)
+    }
+  })
 
   for (let i = 0; i < urlCandidates.length; i += 1) {
     const url = urlCandidates[i]
     try {
-      const response = await fetch(url, { referrerPolicy: "no-referrer" })
+      const response = await fetch(url, fetchOptions)
       if (!response.ok) {
         continue
       }
@@ -385,7 +414,12 @@ function createIntroTextMarkData() {
   return [
     {
       id: `intro-textmark-${center.id}`,
-      text: center.labelName || center.cityName || center.name || "南京市",
+      text:
+        center.labelName ||
+        center.cityName ||
+        center.name ||
+        textMarkConfig.centerFallbackText ||
+        "南京市",
       position: {
         lon: center.lng,
         lat: center.lat,
@@ -457,7 +491,7 @@ function ensureVisible() {
 }
 
 async function play(options = {}) {
-  const animationSettings = INTRO_EARTH_SETTINGS.animation
+  const animationSettings = INTRO_ANIMATION_SETTINGS
   const {
     duration = animationSettings.defaultDuration,
     holdDuration = animationSettings.defaultHoldDuration,
@@ -483,26 +517,33 @@ async function play(options = {}) {
   if (typeof controls?.enabled === "boolean") {
     controls.enabled = false
   }
+  const cameraStartFallback = animationSettings.cameraStartFallback || {}
+  const lookAt = animationSettings.lookAt || {}
+  const containerStartScaleFallback = resolveFiniteNumber(animationSettings.containerStartScale, 1)
 
   const cameraStart = {
-    x: camera.position.x || 350,
-    y: camera.position.y || 350,
-    z: camera.position.z || 350,
+    x: resolveFiniteNumber(camera.position.x, cameraStartFallback.x),
+    y: resolveFiniteNumber(camera.position.y, cameraStartFallback.y),
+    z: resolveFiniteNumber(camera.position.z, cameraStartFallback.z),
   }
   const cameraEnd = {
     x: cameraStart.x * animationSettings.cameraPushScale,
     y: cameraStart.y * animationSettings.cameraPushScale,
     z: cameraStart.z * animationSettings.cameraPushScale,
   }
-  const cameraFovStart = Number.isFinite(camera.fov) ? camera.fov : 75
+  const cameraFovStart = resolveFiniteNumber(camera.fov, animationSettings.cameraFovStart)
   camera.fov = cameraFovStart
   camera.updateProjectionMatrix()
-  camera.lookAt(0, 0, 0)
+  camera.lookAt(
+    resolveFiniteNumber(lookAt.x, 0),
+    resolveFiniteNumber(lookAt.y, 0),
+    resolveFiniteNumber(lookAt.z, 0)
+  )
 
   const containerStartScale = {
-    x: container?.scale?.x || 1,
-    y: container?.scale?.y || 1,
-    z: container?.scale?.z || 1,
+    x: resolveFiniteNumber(container?.scale?.x, containerStartScaleFallback),
+    y: resolveFiniteNumber(container?.scale?.y, containerStartScaleFallback),
+    z: resolveFiniteNumber(container?.scale?.z, containerStartScaleFallback),
   }
 
   const containerEndScale = {
@@ -570,7 +611,11 @@ async function play(options = {}) {
       z: cameraEnd.z,
       ease: "power2.out",
       onUpdate: () => {
-        camera.lookAt(0, 0, 0)
+        camera.lookAt(
+          resolveFiniteNumber(lookAt.x, 0),
+          resolveFiniteNumber(lookAt.y, 0),
+          resolveFiniteNumber(lookAt.z, 0)
+        )
       },
     }, clampedHoldDuration)
 

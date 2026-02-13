@@ -1,11 +1,32 @@
 const introTransitionConfig = {
   introEarth: {
     mapName: "intro_globe_map",
+    mapData: {
+      sourcePaths: [
+        "assets/json/world.json",
+        "assets/json/中华人民共和国.json",
+      ],
+      useEncodedFallback: true,
+      fetchOptions: {
+        referrerPolicy: "no-referrer",
+      },
+      renderableTimeout: 9000,
+    },
     focusChina: {
       lon: 104,
       lat: 35,
       tiltX: -0.22,
       rollZ: 0.18,
+    },
+    clickToMap: {
+      chinaRegionType: "country",
+      chinaRegionNames: [
+        "china",
+        "中华人民共和国",
+        "中国",
+        "people's republic of china",
+        "people republic of china",
+      ],
     },
     preloadProgress: {
       mapLoading: 0.08,
@@ -104,11 +125,24 @@ const introTransitionConfig = {
         fontSize: 22,
         color: "#ffdf7a",
       },
+      centerFallbackText: "南京市",
     },
     animation: {
       cameraPushScale: 0.52,
       globeScaleEnd: 1.72,
       cameraFovEnd: 42,
+      cameraFovStart: 75,
+      cameraStartFallback: {
+        x: 350,
+        y: 350,
+        z: 350,
+      },
+      containerStartScale: 1,
+      lookAt: {
+        x: 0,
+        y: 0,
+        z: 0,
+      },
       rotateSpeedPushStart: 0.0025,
       rotateSpeedPushEnd: 0.011,
       minDuration: 0.1,
@@ -177,6 +211,25 @@ const introTransitionConfig = {
       introDuration: 7.2,
       holdDuration: 3.2,
       fadeOutDuration: 0,
+    },
+    loading: {
+      weights: {
+        assets: 0.82,
+        earth: 0.18,
+      },
+      tweenDuration: {
+        default: 0.32,
+        earthProgress: 0.22,
+        complete: 0.2,
+      },
+      hideAnimation: {
+        textTranslateY: "120%",
+        textDuration: 0.65,
+        textStagger: 0.06,
+        progressDuration: 0.45,
+        layerDuration: 0.45,
+        overlapOffset: 0.18,
+      },
     },
   },
 }
