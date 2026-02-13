@@ -138,6 +138,8 @@ export class World extends Mini3d {
       position: new Vector3(-0.35, 13.2, 17.8),
       target: new Vector3(0, 0, 0),
     }
+    // 缓存加载失败的地图 URL（避免重复 404 请求和重复告警）
+    this.failedMapUrlSet = new Set()
     // 远程地图源是否可用（403 后自动关闭）
     this.remoteMapFetchEnabled = true
 
@@ -279,6 +281,9 @@ export class World extends Mini3d {
     )
     this.otherLabel.map((item, index) => {
       let element = item.element.querySelector(".other-label")
+      if (!element) {
+        return
+      }
       tl.to(
         element,
         {
@@ -360,6 +365,9 @@ export class World extends Mini3d {
 
     this.allProvinceLabel.map((item, index) => {
       let element = item.element.querySelector(".provinces-label-wrap")
+      if (!element) {
+        return
+      }
       tl.to(
         element,
         {
@@ -373,8 +381,13 @@ export class World extends Mini3d {
       )
     })
     this.allGuangquan.map((item, index) => {
+      const innerScale = item?.children?.[0]?.scale
+      const outerScale = item?.children?.[1]?.scale
+      if (!innerScale || !outerScale) {
+        return
+      }
       tl.to(
-        item.children[0].scale,
+        innerScale,
         {
           duration: 1,
           delay: 0.1 * index,
@@ -386,7 +399,7 @@ export class World extends Mini3d {
         "bar"
       )
       tl.to(
-        item.children[1].scale,
+        outerScale,
         {
           duration: 1,
           delay: 0.1 * index,
@@ -991,15 +1004,25 @@ export class World extends Mini3d {
 
       for (let i = 0; i < sources.length; i += 1) {
         const source = sources[i]
+        if (source.type === "local" && this.failedMapUrlSet.has(source.url)) {
+          continue
+        }
         try {
           const data = await this.fetchMapText(source.url)
           callback && callback(data)
           return
         } catch (error) {
+          const isLocal404 = source.type === "local" && error?.status === 404
+          const isFirstLocal404 = isLocal404 && !this.failedMapUrlSet.has(source.url)
+          if (isLocal404) {
+            this.failedMapUrlSet.add(source.url)
+          }
           if (source.type === "remote" && error?.status === 403) {
             this.remoteMapFetchEnabled = false
           }
-          console.warn(`[map] 地图数据加载失败 (${source.type}): ${source.url}`, error)
+          if (!isLocal404 || isFirstLocal404) {
+            console.warn(`[map] 地图数据加载失败 (${source.type}): ${source.url}`, error)
+          }
         }
       }
 
