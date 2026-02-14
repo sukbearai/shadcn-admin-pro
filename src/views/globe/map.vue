@@ -28,6 +28,9 @@ function loadMap(assets) {
 function goBack() {
   canvasMap.value && canvasMap.value.goBack();
 }
+function resetScene() {
+  canvasMap.value && canvasMap.value.resetScene();
+}
 async function play() {
   if (!canvasMap.value) return;
   canvasMap.value.time.resume();
@@ -38,6 +41,7 @@ defineExpose({
   loadMap,
   play,
   goBack,
+  resetScene,
   canvasMap,
 });
 </script>

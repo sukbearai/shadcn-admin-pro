@@ -163,6 +163,7 @@ function captureBaseViewState() {
   }
   const camera = chartScene.camera
   const container = chartScene.mainContainer
+  const controls = chartScene.controls
   sceneBaseState = {
     cameraPosition: {
       x: camera.position?.x || 0,
@@ -181,12 +182,21 @@ function captureBaseViewState() {
       z: container.rotation?.z || 0,
       order: container.rotation?.order || "XYZ",
     },
+    controlTarget: controls?.target
+      ? {
+          x: controls.target.x,
+          y: controls.target.y,
+          z: controls.target.z,
+        }
+      : null,
   }
+  controls?.saveState?.()
 }
 
 function resetViewState() {
   const camera = chartScene?.camera
   const container = chartScene?.mainContainer
+  const controls = chartScene?.controls
   if (!camera || !container) {
     return
   }
@@ -197,8 +207,8 @@ function resetViewState() {
 
   chartScene.options.autoRotate = false
   chartScene.setRotateSpeed && chartScene.setRotateSpeed(0)
-  if (typeof chartScene.controls?.enabled === "boolean") {
-    chartScene.controls.enabled = true
+  if (typeof controls?.enabled === "boolean") {
+    controls.enabled = true
   }
 
   if (sceneBaseState?.cameraPosition) {
@@ -232,6 +242,19 @@ function resetViewState() {
     resolveFiniteNumber(lookAt.y, 0),
     resolveFiniteNumber(lookAt.z, 0)
   )
+  if (controls?.target) {
+    const controlTarget = sceneBaseState?.controlTarget || {
+      x: resolveFiniteNumber(lookAt.x, 0),
+      y: resolveFiniteNumber(lookAt.y, 0),
+      z: resolveFiniteNumber(lookAt.z, 0),
+    }
+    controls.target.set(controlTarget.x, controlTarget.y, controlTarget.z)
+  }
+  controls?.reset?.()
+  if (controls?.target && sceneBaseState?.controlTarget) {
+    controls.target.set(sceneBaseState.controlTarget.x, sceneBaseState.controlTarget.y, sceneBaseState.controlTarget.z)
+  }
+  controls?.update?.()
   container.updateMatrixWorld?.(true)
   resetIntroLayer()
 }

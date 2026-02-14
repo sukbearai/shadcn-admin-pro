@@ -327,6 +327,7 @@ async function switchToEarthIntro() {
   state.awaitingChinaClick = false
   state.hasStartedMapTransition = false
   screenCloudLayerRef.value?.stopAndHide?.()
+  mapSceneRef.value?.resetScene?.()
   state.showEarthIntro = true
   await nextTick()
   introEarthFlylineRef.value?.resetViewState?.()

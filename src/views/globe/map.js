@@ -211,11 +211,14 @@ export class World extends Mini3d {
     this.clicked = false
     // 当前场景 mainScene | childScene
     this.currentScene = "mainScene"
+    this.rootHistoryState = { name: options.rootName || "中国" }
     // 下钻历史
     this.history = new createHistory()
-    this.history.push({ name: options.rootName || "中国" })
+    this.history.push({ ...this.rootHistoryState })
     // 子地图对象
     this.childMap = null
+    // 子图加载序列（用于取消过期回调）
+    this.childMapLoadSeq = 0
     // 主场景可见性快照
     this.mainSceneVisibilityState = null
     // 返回按钮
@@ -1240,8 +1243,13 @@ export class World extends Mini3d {
     }
 
     const isEnterFromMainScene = this.currentScene === "mainScene"
+    const loadSeq = ++this.childMapLoadSeq
 
     this.getChildMapData(userData, (data) => {
+      if (loadSeq !== this.childMapLoadSeq) {
+        this.clicked = false
+        return
+      }
       if (!data) {
         this.clicked = false
         return
@@ -1468,10 +1476,29 @@ export class World extends Mini3d {
     }
   }
 
+  resetHistoryToRoot() {
+    this.history = new createHistory()
+    this.history.push({ ...this.rootHistoryState })
+  }
+
+  resetScene(duration = 0) {
+    this.childMapLoadSeq += 1
+    this.currentScene = "mainScene"
+    this.clicked = false
+    this.childMap && this.childMap.destroy()
+    this.childMap = null
+    this.resetHistoryToRoot()
+    this.setMainMapVisible(true)
+    this.setReturnButtonVisible(false)
+    this.applyCameraState(this.mainCameraFallbackState, duration)
+    document.body.style.cursor = "default"
+  }
+
   goBack() {
     if (this.currentScene !== "childScene") {
       return
     }
+    this.childMapLoadSeq += 1
 
     this.history.undo()
 
