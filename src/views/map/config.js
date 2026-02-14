@@ -6,6 +6,7 @@ import PurposeSpecialFunds from "./components/PurposeSpecialFunds.vue"
 import ProportionPopulationConsumption from "./components/ProportionPopulationConsumption.vue"
 import ElectricityUsage from "./components/ElectricityUsage.vue"
 import QuarterlyGrowthSituation from "./components/QuarterlyGrowthSituation.vue"
+import { techGreenWorldSkin } from "./skin/presets"
 
 export const mapViewConfig = {
   header: {
@@ -68,7 +69,7 @@ export const mapViewConfig = {
           mapStroke: "assets/json/中华人民共和国.json",
         },
       },
-      world: {},
+      world: techGreenWorldSkin,
     },
     worldOptions: {
       rootName: "中国",

@@ -1,7 +1,7 @@
 <template>
   <div class="large-screen">
     <!-- 地图 -->
-    <mapScene ref="mapSceneRef" :world-options="globeWorldOptions"
+    <mapScene ref="mapSceneRef" :world-options="resolvedWorldOptions"
       :class="{ 'map-scene-hidden': state.showEarthIntro }"></mapScene>
     <!-- 地球飞线过渡层 -->
     <IntroEarthFlyline :active="state.showEarthIntro" ref="introEarthFlylineRef"></IntroEarthFlyline>
@@ -122,7 +122,7 @@
   </div>
 </template>
 <script setup>
-import { shallowRef, ref, reactive, onMounted, onBeforeUnmount, nextTick } from "vue"
+import { computed, shallowRef, ref, reactive, onMounted, onBeforeUnmount, nextTick } from "vue"
 import mapScene from "./map.vue"
 import mHeader from "@/components/mHeader/index.vue"
 import mMenu from "@/components/mMenu/index.vue"
@@ -136,6 +136,7 @@ import IntroEarthFlyline from "./components/IntroEarthFlyline.vue"
 
 import { Assets } from "./assets.js"
 import globeWorldOptions from "./config/worldOptions.js"
+import { createMapSkin } from "../map/skin"
 import emitter from "@/utils/emitter"
 import gsap from "gsap"
 import autofit from "autofit.js"
@@ -144,6 +145,11 @@ const assets = shallowRef(null)
 const mapSceneRef = ref(null)
 const screenCloudLayerRef = ref(null)
 const introEarthFlylineRef = ref(null)
+const resolvedMapSkin = createMapSkin(globeWorldOptions?.skin || {})
+const resolvedWorldOptions = computed(() => ({
+  ...globeWorldOptions,
+  skin: resolvedMapSkin,
+}))
 const loadingChars = globeViewConfig.loading.text.split("")
 const INTRO_EARTH_SETTINGS = introTransitionConfig.introEarth || {}
 const INTRO_TRANSITION_SETTINGS = introTransitionConfig.transition
@@ -420,7 +426,7 @@ onBeforeUnmount(() => {
 })
 // 初始化加载资源
 function initAssets(onLoadCallback) {
-  assets.value = new Assets()
+  assets.value = new Assets({ skin: resolvedMapSkin })
 
   assets.value.instance.on("onProgress", (path, itemsLoaded, itemsTotal) => {
     const progress = itemsTotal > 0 ? itemsLoaded / itemsTotal : 0

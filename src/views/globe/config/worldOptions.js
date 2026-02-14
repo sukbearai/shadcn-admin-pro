@@ -1,7 +1,12 @@
+import { techGreenWorldSkin } from "@/views/map/skin/presets"
+
 const globeWorldOptions = {
   rootName: "江苏省",
   geoProjectionCenter: [119.486506, 32.983991],
   geoProjectionScale: 75,
+  skin: {
+    world: techGreenWorldSkin,
+  },
   businessProvinceNames: ["江苏省"],
   resourceNames: {
     mapJson: "jiangsu",

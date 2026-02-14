@@ -55,6 +55,7 @@ import gsap from "gsap"
 import emitter from "@/utils/emitter"
 import { InteractionManager } from "three.interactive"
 import { ChildMap } from "./map/childMap"
+import { createMapSkin } from "../map/skin"
 function sortByValue(data) {
   data.sort((a, b) => b.value - a.value)
   return data
@@ -101,6 +102,13 @@ function resolveVector3State(value, fallback) {
   return fallback.clone()
 }
 
+function resolveTuple(value, fallback = []) {
+  if (Array.isArray(value) && value.length === fallback.length) {
+    return value.map((item, index) => toNumber(item, fallback[index]))
+  }
+  return [...fallback]
+}
+
 function resolveCloudLayerConfig(config, depth) {
   const defaultConfig = {
     enabled: true,
@@ -136,6 +144,9 @@ function resolveCloudLayerConfig(config, depth) {
 export class World extends Mini3d {
   constructor(canvas, assets, options = {}) {
     super(canvas)
+    const resolvedSkin = createMapSkin(options.skin || (options.theme ? { world: options.theme } : {}))
+    this.skin = resolvedSkin
+    this.theme = resolvedSkin.world || {}
     const defaultGeoProjectionCenter = [106, 35]
     const resolvedMarketingCenters =
       Array.isArray(options.marketingCenters) && options.marketingCenters.length ? options.marketingCenters : marketingCenters
@@ -259,10 +270,15 @@ export class World extends Mini3d {
     // 远程地图源是否可用（403 后自动关闭）
     this.remoteMapFetchEnabled = true
 
+    const sceneTheme = this.theme.scene || {}
+    const fogColor = sceneTheme.fogColor ?? 0x102736
+    const fogNear = toNumber(sceneTheme.fogNear, 1)
+    const fogFar = toNumber(sceneTheme.fogFar, 50)
+    const backgroundColor = sceneTheme.backgroundColor ?? fogColor
     // 雾
-    this.scene.fog = new Fog(0x102736, 1, 50)
+    this.scene.fog = new Fog(fogColor, fogNear, fogFar)
     // 背景
-    this.scene.background = new Color(0x102736)
+    this.scene.background = new Color(backgroundColor)
 
     // 相机初始位置
     this.camera.instance.position.copy(this.initialCameraPosition)
@@ -535,35 +551,39 @@ export class World extends Mini3d {
   }
 
   initEnvironment() {
-    let sun = new AmbientLight(0xffffff, 5)
+    const lightTheme = this.theme.lights || {}
+    const ambientTheme = lightTheme.ambient || {}
+    let sun = new AmbientLight(ambientTheme.color ?? 0xffffff, toNumber(ambientTheme.intensity, 5))
     this.scene.add(sun)
-    let directionalLight = new DirectionalLight(0xffffff, 5)
-    directionalLight.position.set(-30, 6, -8)
+    const directionalTheme = lightTheme.directional || {}
+    const directionalPosition = resolveTuple(directionalTheme.position, [-30, 6, -8])
+    const directionalShadowMapSize = resolveTuple(directionalTheme.shadowMapSize, [1024, 1024])
+    let directionalLight = new DirectionalLight(
+      directionalTheme.color ?? 0xffffff,
+      toNumber(directionalTheme.intensity, 5)
+    )
+    directionalLight.position.set(directionalPosition[0], directionalPosition[1], directionalPosition[2])
     directionalLight.castShadow = true
-    directionalLight.shadow.radius = 20
-    directionalLight.shadow.mapSize.width = 1024
-    directionalLight.shadow.mapSize.height = 1024
+    directionalLight.shadow.radius = toNumber(directionalTheme.shadowRadius, 20)
+    directionalLight.shadow.mapSize.width = directionalShadowMapSize[0]
+    directionalLight.shadow.mapSize.height = directionalShadowMapSize[1]
     this.scene.add(directionalLight)
-    this.createPointLight({
-      color: "#1d5e5e",
-      intensity: 800,
-      distance: 10000,
-      x: -9,
-      y: 3,
-      z: -3,
-    })
-    this.createPointLight({
-      color: "#1d5e5e",
-      intensity: 200,
-      distance: 10000,
-      x: 0,
-      y: 2,
-      z: 5,
+    const defaultPointLights = [
+      { color: "#1d5e5e", intensity: 800, distance: 10000, x: -9, y: 3, z: -3 },
+      { color: "#1d5e5e", intensity: 200, distance: 10000, x: 0, y: 2, z: 5 },
+    ]
+    const pointLights = Array.isArray(lightTheme.points) && lightTheme.points.length ? lightTheme.points : defaultPointLights
+    pointLights.forEach((pointParams) => {
+      this.createPointLight(pointParams)
     })
   }
   createPointLight(pointParams) {
-    const pointLight = new PointLight(0x1d5e5e, pointParams.intensity, pointParams.distance)
-    pointLight.position.set(pointParams.x, pointParams.y, pointParams.z)
+    const pointLight = new PointLight(
+      pointParams.color ?? 0x1d5e5e,
+      toNumber(pointParams.intensity, 200),
+      toNumber(pointParams.distance, 10000)
+    )
+    pointLight.position.set(toNumber(pointParams.x, 0), toNumber(pointParams.y, 0), toNumber(pointParams.z, 0))
     this.scene.add(pointLight)
   }
   createMap() {
@@ -801,15 +821,18 @@ export class World extends Mini3d {
       .filter((item) => item.name && Array.isArray(item.center))
   }
   createChina() {
+    const chinaTheme = this.theme.china || {}
     let params = {
-      chinaBgMaterialColor: "#1a3f5c",
-      lineColor: "#63b8ec",
+      chinaBgMaterialColor: chinaTheme.bgColor ?? "#1a3f5c",
+      chinaBgMaterialOpacity: toNumber(chinaTheme.bgOpacity, 0.88),
+      lineColor: chinaTheme.lineColor ?? "#63b8ec",
+      lineOpacity: toNumber(chinaTheme.lineOpacity, 0.72),
     }
     let chinaData = this.getMapData("china")
     let chinaBgMaterial = new MeshLambertMaterial({
       color: new Color(params.chinaBgMaterialColor),
       transparent: true,
-      opacity: 0.88,
+      opacity: params.chinaBgMaterialOpacity,
     })
     let china = new BaseMap(this, {
       //position: new Vector3(0, 0, -0.03),
@@ -823,7 +846,7 @@ export class World extends Mini3d {
     let chinaTopLineMaterial = new LineBasicMaterial({
       color: params.lineColor,
       transparent: true,
-      opacity: 0.72,
+      opacity: params.lineOpacity,
     })
     let chinaTopLine = new Line(this, {
       // position: new Vector3(0, 0, -0.02),
@@ -842,6 +865,9 @@ export class World extends Mini3d {
     geoProjectionScale = this.geoProjectionScale,
     mapLineOpacity = 0,
   }) {
+    const provinceTheme = this.theme.province || {}
+    const topSurfaceTheme = provinceTheme.topSurface || {}
+    const hoverTheme = provinceTheme.hover || {}
     let [topMaterial, sideMaterial] = this.createProvinceMaterial()
 
     let map = new ExtrudeMap(this, {
@@ -856,19 +882,19 @@ export class World extends Mini3d {
     })
 
     let faceMaterial = new MeshStandardMaterial({
-      color: 0xffffff,
+      color: topSurfaceTheme.baseColor ?? 0xffffff,
       transparent: true,
-      opacity: 0.5,
+      opacity: toNumber(topSurfaceTheme.opacity, 0.5),
     })
     new GradientShader(faceMaterial, {
-      uColor1: 0x12bbe0,
-      uColor2: 0x0094b5,
+      uColor1: topSurfaceTheme.color1 ?? 0x12bbe0,
+      uColor2: topSurfaceTheme.color2 ?? 0x0094b5,
     })
 
     let defaultMaterial = faceMaterial
     let defaultLightMaterial = defaultMaterial.clone()
-    defaultLightMaterial.color = new Color("rgba(115,208,255,1)")
-    defaultLightMaterial.opacity = 0.8
+    defaultLightMaterial.color = new Color(hoverTheme.color ?? "rgba(115,208,255,1)")
+    defaultLightMaterial.opacity = toNumber(hoverTheme.opacity, 0.8)
 
     let mapTop = new BaseMap(this, {
       geoProjectionCenter,
@@ -940,18 +966,25 @@ export class World extends Mini3d {
     }
   }
   createProvinceMaterial() {
+    const provinceTheme = this.theme.province || {}
+    const topGradientTheme = provinceTheme.topGradient || {}
+    const sideGradientTheme = provinceTheme.sideGradient || {}
+    const sideFlowTheme = provinceTheme.sideFlow || {}
+    const topGradientAxisSize = toNumber(topGradientTheme.axisSize, 15.78)
+    const sideGradientAxisSize = toNumber(sideGradientTheme.axisSize, 1.2)
+    const topAlpha = toNumber(provinceTheme.topAlpha, 0.5)
     let topMaterial = new MeshLambertMaterial({
-      color: 0xffffff,
+      color: provinceTheme.topBaseColor ?? 0xffffff,
       transparent: true,
-      opacity: 0,
+      opacity: toNumber(provinceTheme.topOpacity, 0),
       fog: false,
       side: DoubleSide,
     })
     topMaterial.onBeforeCompile = (shader) => {
       shader.uniforms = {
         ...shader.uniforms,
-        uColor1: { value: new Color(0x2a6e92) }, // 419daa
-        uColor2: { value: new Color(0x102736) },
+        uColor1: { value: new Color(topGradientTheme.color1 ?? 0x2a6e92) }, // 419daa
+        uColor2: { value: new Color(topGradientTheme.color2 ?? 0x102736) },
       }
       shader.vertexShader = shader.vertexShader.replace(
         "void main() {",
@@ -983,9 +1016,9 @@ export class World extends Mini3d {
             #ifdef USE_TRANSMISSION
       diffuseColor.a *= transmissionAlpha + 0.1;
       #endif
-      vec3 gradient = mix(uColor1, uColor2, vPosition.x/15.78);       
+      vec3 gradient = mix(uColor1, uColor2, vPosition.x/${topGradientAxisSize});       
       outgoingLight = outgoingLight*gradient;
-      float topAlpha = 0.5;
+      float topAlpha = ${topAlpha};
       if(vPosition.z>0.3){
         diffuseColor.a *= topAlpha;
       }
@@ -999,21 +1032,23 @@ export class World extends Mini3d {
       sideMap.needsUpdate = true
       sideMap.wrapS = RepeatWrapping
       sideMap.wrapT = RepeatWrapping
-      sideMap.repeat.set(1, 1.5)
-      sideMap.offset.y += 0.065
+      const sideRepeat = resolveTuple(sideFlowTheme.repeat, [1, 1.5])
+      sideMap.repeat.set(sideRepeat[0], sideRepeat[1])
+      sideMap.offset.y += toNumber(sideFlowTheme.startOffsetY, 0.065)
       this.sideFlowTexture = sideMap
     }
     let sideMaterial = new MeshStandardMaterial({
-      color: 0xffffff,
+      color: provinceTheme.sideBaseColor ?? 0xffffff,
       map: sideMap,
       fog: false,
-      opacity: 0,
+      opacity: toNumber(provinceTheme.sideOpacity, 0),
       side: DoubleSide,
     })
     if (!this.sideFlowTickHandler) {
+      const sideFlowSpeedY = toNumber(sideFlowTheme.speedY, 0.005)
       this.sideFlowTickHandler = () => {
         if (this.sideFlowTexture) {
-          this.sideFlowTexture.offset.y += 0.005
+          this.sideFlowTexture.offset.y += sideFlowSpeedY
         }
       }
       this.time.on("tick", this.sideFlowTickHandler)
@@ -1021,8 +1056,8 @@ export class World extends Mini3d {
     sideMaterial.onBeforeCompile = (shader) => {
       shader.uniforms = {
         ...shader.uniforms,
-        uColor1: { value: new Color(0x2a6e92) },
-        uColor2: { value: new Color(0x2a6e92) },
+        uColor1: { value: new Color(sideGradientTheme.color1 ?? 0x2a6e92) },
+        uColor2: { value: new Color(sideGradientTheme.color2 ?? 0x2a6e92) },
       }
       shader.vertexShader = shader.vertexShader.replace(
         "void main() {",
@@ -1054,7 +1089,7 @@ export class World extends Mini3d {
             #ifdef USE_TRANSMISSION
       diffuseColor.a *= transmissionAlpha + 0.1;
       #endif
-      vec3 gradient = mix(uColor1, uColor2, vPosition.z/1.2);
+      vec3 gradient = mix(uColor1, uColor2, vPosition.z/${sideGradientAxisSize});
       outgoingLight = outgoingLight*gradient;
       gl_FragColor = vec4( outgoingLight, diffuseColor.a  );
       `
@@ -1063,6 +1098,9 @@ export class World extends Mini3d {
     return [topMaterial, sideMaterial]
   }
   createBar() {
+    const barTheme = this.theme.bar || {}
+    const primaryBarTheme = barTheme.primary || {}
+    const secondaryBarTheme = barTheme.secondary || {}
     this.allBar = []
     this.allBarMaterial = []
     this.allGuangquan = []
@@ -1081,6 +1119,7 @@ export class World extends Mini3d {
     const height = 4.0 * factor
     const max = data.reduce((currentMax, item) => Math.max(currentMax, toNumber(item.value, 0)), 0) || 1
     data.map((item, index) => {
+      const isSecondaryBar = index > 3
       let geoHeight = height * (toNumber(item.value, 0) / max)
       let material = new MeshBasicMaterial({
         color: 0xffffff,
@@ -1090,8 +1129,8 @@ export class World extends Mini3d {
         fog: false,
       })
       new GradientShader(material, {
-        uColor1: index > 3 ? 0xfbdf88 : 0x50bbfe,
-        uColor2: index > 3 ? 0xfffef4 : 0x77fbf5,
+        uColor1: isSecondaryBar ? (secondaryBarTheme.color1 ?? 0xfbdf88) : (primaryBarTheme.color1 ?? 0x50bbfe),
+        uColor2: isSecondaryBar ? (secondaryBarTheme.color2 ?? 0xfffef4) : (primaryBarTheme.color2 ?? 0x77fbf5),
         size: geoHeight,
         dir: "y",
       })
@@ -1105,7 +1144,7 @@ export class World extends Mini3d {
       areaBar.scale.set(1, 1, 0)
       areaBar.userData = { ...item }
       let guangQuan = this.createQuan(new Vector3(x, this.depth + 0.44, y), index)
-      let hg = this.createHUIGUANG(geoHeight, index > 3 ? 0xfffef4 : 0x77fbf5)
+      let hg = this.createHUIGUANG(geoHeight, isSecondaryBar ? (secondaryBarTheme.color2 ?? 0xfffef4) : (primaryBarTheme.color2 ?? 0x77fbf5))
       areaBar.add(...hg)
       barGroup.add(areaBar)
       barGroup.rotation.x = -Math.PI / 2
@@ -1533,6 +1572,7 @@ export class World extends Mini3d {
   }
 
   createHUIGUANG(h, color) {
+    const huiguangTheme = this.theme.huiguang || {}
     let geometry = new PlaneGeometry(0.35, h)
     geometry.translate(0, h / 2, 0)
     const texture = this.assets.instance.getResource("huiguang")
@@ -1543,7 +1583,7 @@ export class World extends Mini3d {
       color: color,
       map: texture,
       transparent: true,
-      opacity: 0.4,
+      opacity: toNumber(huiguangTheme.opacity, 0.4),
       depthWrite: false,
       side: DoubleSide,
       blending: AdditiveBlending,
@@ -1602,6 +1642,7 @@ export class World extends Mini3d {
   }
   // 创建扩散
   createDiffuse() {
+    const diffuseTheme = this.theme.diffuse || {}
     let geometry = new PlaneGeometry(200, 200)
     let material = new MeshBasicMaterial({
       color: 0x000000,
@@ -1617,16 +1658,16 @@ export class World extends Mini3d {
     let diffuse = new DiffuseShader({
       material,
       time: this.time,
-      size: 60,
-      diffuseSpeed: 8.0,
-      diffuseColor: 0x71918e,
-      diffuseWidth: 2.0,
+      size: toNumber(diffuseTheme.size, 60),
+      diffuseSpeed: toNumber(diffuseTheme.speed, 8.0),
+      diffuseColor: diffuseTheme.color ?? 0x71918e,
+      diffuseWidth: toNumber(diffuseTheme.width, 2.0),
       callback: (pointShader) => {
         setTimeout(() => {
           gsap.to(pointShader.uniforms.uTime, {
-            value: 4,
+            value: toNumber(diffuseTheme.targetTime, 4),
             repeat: -1,
-            duration: 6,
+            duration: toNumber(diffuseTheme.duration, 6),
             ease: "power1.easeIn",
           })
         }, 3)
@@ -1639,18 +1680,22 @@ export class World extends Mini3d {
     this.scene.add(mesh)
   }
   createGrid() {
+    const gridTheme = this.theme.grid || {}
     new Grid(this, {
-      gridSize: 50,
-      gridDivision: 20,
-      gridColor: 0x1b4b70,
-      shapeSize: 0.5,
-      shapeColor: 0x2a5f8a,
-      pointSize: 0.1,
-      pointColor: 0x154d7d,
+      gridSize: toNumber(gridTheme.gridSize, 50),
+      gridDivision: toNumber(gridTheme.gridDivision, 20),
+      gridColor: gridTheme.gridColor ?? 0x1b4b70,
+      shapeSize: toNumber(gridTheme.shapeSize, 0.5),
+      shapeColor: gridTheme.shapeColor ?? 0x2a5f8a,
+      pointSize: toNumber(gridTheme.pointSize, 0.1),
+      pointColor: gridTheme.pointColor ?? 0x154d7d,
     })
   }
   createBottomBg() {
-    let geometry = new PlaneGeometry(20, 20)
+    const bottomTheme = this.theme.bottom || {}
+    const bottomPlaneSize = resolveTuple(bottomTheme.planeSize, [20, 20])
+    const bottomPosition = resolveTuple(bottomTheme.position, [0, -0.7, 0])
+    let geometry = new PlaneGeometry(bottomPlaneSize[0], bottomPlaneSize[1])
     const texture = this.assets.instance.getResource("ocean")
     texture.colorSpace = SRGBColorSpace
     texture.wrapS = RepeatWrapping
@@ -1658,16 +1703,19 @@ export class World extends Mini3d {
     texture.repeat.set(1, 1)
     let material = new MeshBasicMaterial({
       map: texture,
-      opacity: 1,
+      opacity: toNumber(bottomTheme.opacity, 1),
       fog: false,
     })
     let mesh = new Mesh(geometry, material)
     mesh.rotation.x = -Math.PI / 2
-    mesh.position.set(0, -0.7, 0)
+    mesh.position.set(bottomPosition[0], bottomPosition[1], bottomPosition[2])
     this.scene.add(mesh)
   }
   createChinaBlurLine() {
-    let geometry = new PlaneGeometry(147, 147)
+    const blurLineTheme = this.theme.blurLine || {}
+    const blurLineSize = resolveTuple(blurLineTheme.size, [147, 147])
+    const blurLinePosition = resolveTuple(blurLineTheme.position, [-19.3, -0.5, -19.7])
+    let geometry = new PlaneGeometry(blurLineSize[0], blurLineSize[1])
     const texture = this.assets.instance.getResource("chinaBlurLine")
     texture.colorSpace = SRGBColorSpace
     texture.wrapS = RepeatWrapping
@@ -1676,14 +1724,14 @@ export class World extends Mini3d {
     texture.minFilter = NearestFilter
     texture.repeat.set(1, 1)
     let material = new MeshBasicMaterial({
-      color: 0x3f82cd,
+      color: blurLineTheme.color ?? 0x3f82cd,
       alphaMap: texture,
       transparent: true,
-      opacity: 0.5,
+      opacity: toNumber(blurLineTheme.opacity, 0.5),
     })
     let mesh = new Mesh(geometry, material)
     mesh.rotateX(-Math.PI / 2)
-    mesh.position.set(-19.3, -0.5, -19.7)
+    mesh.position.set(blurLinePosition[0], blurLinePosition[1], blurLinePosition[2])
     this.scene.add(mesh)
   }
 
@@ -1816,42 +1864,48 @@ export class World extends Mini3d {
     }
   }
   createRotateBorder() {
-    let max = 12
+    const rotateBorderTheme = this.theme.rotateBorder || {}
+    const rotateBorderTheme1 = rotateBorderTheme.first || {}
+    const rotateBorderTheme2 = rotateBorderTheme.second || {}
+    const rotateBorderColor = rotateBorderTheme.color ?? 0x48afff
+    const rotateBorderPos1 = resolveTuple(rotateBorderTheme1.position, [0, 0.28, 0])
+    const rotateBorderPos2 = resolveTuple(rotateBorderTheme2.position, [0, 0.3, 0])
+    let max = toNumber(rotateBorderTheme.max, 12)
     let rotationBorder1 = this.assets.instance.getResource("rotationBorder1")
     let rotationBorder2 = this.assets.instance.getResource("rotationBorder2")
     let plane01 = new Plane(this, {
-      width: max * 1.178,
+      width: max * toNumber(rotateBorderTheme1.widthScale, 1.178),
       needRotate: true,
-      rotateSpeed: 0.001,
+      rotateSpeed: toNumber(rotateBorderTheme1.rotateSpeed, 0.001),
       material: new MeshBasicMaterial({
         map: rotationBorder1,
-        color: 0x48afff,
+        color: rotateBorderTheme1.color ?? rotateBorderColor,
         transparent: true,
-        opacity: 0.2,
+        opacity: toNumber(rotateBorderTheme1.opacity, 0.2),
         side: DoubleSide,
         depthWrite: false,
         blending: AdditiveBlending,
       }),
-      position: new Vector3(0, 0.28, 0),
+      position: new Vector3(rotateBorderPos1[0], rotateBorderPos1[1], rotateBorderPos1[2]),
     })
     plane01.instance.rotation.x = -Math.PI / 2
     plane01.instance.renderOrder = 6
     plane01.instance.scale.set(0, 0, 0)
     plane01.setParent(this.scene)
     let plane02 = new Plane(this, {
-      width: max * 1.116,
+      width: max * toNumber(rotateBorderTheme2.widthScale, 1.116),
       needRotate: true,
-      rotateSpeed: -0.004,
+      rotateSpeed: toNumber(rotateBorderTheme2.rotateSpeed, -0.004),
       material: new MeshBasicMaterial({
         map: rotationBorder2,
-        color: 0x48afff,
+        color: rotateBorderTheme2.color ?? rotateBorderColor,
         transparent: true,
-        opacity: 0.4,
+        opacity: toNumber(rotateBorderTheme2.opacity, 0.4),
         side: DoubleSide,
         depthWrite: false,
         blending: AdditiveBlending,
       }),
-      position: new Vector3(0, 0.3, 0),
+      position: new Vector3(rotateBorderPos2[0], rotateBorderPos2[1], rotateBorderPos2[2]),
     })
     plane02.instance.rotation.x = -Math.PI / 2
     plane02.instance.renderOrder = 6
@@ -1861,30 +1915,33 @@ export class World extends Mini3d {
     this.rotateBorder2 = plane02.instance
   }
   createFlyLine() {
+    const flyLineTheme = this.theme.flyLine || {}
+    const flyLineTextureRepeat = resolveTuple(flyLineTheme.textureRepeat, [0.5, 2])
     this.flyLineGroup = new Group()
     this.flyLineGroup.visible = false
     this.scene.add(this.flyLineGroup)
     const texture = this.assets.instance.getResource("mapFlyline")
     texture.wrapS = texture.wrapT = RepeatWrapping
-    texture.repeat.set(0.5, 2)
-    const tubeRadius = 0.1
-    const tubeSegments = 32
-    const tubeRadialSegments = 2
+    texture.repeat.set(flyLineTextureRepeat[0], flyLineTextureRepeat[1])
+    const tubeRadius = toNumber(flyLineTheme.tubeRadius, 0.1)
+    const tubeSegments = toNumber(flyLineTheme.tubeSegments, 32)
+    const tubeRadialSegments = toNumber(flyLineTheme.tubeRadialSegments, 2)
     const closed = false
     let [centerX, centerY] = this.geoProjection(this.flyLineCenter)
     let centerPoint = new Vector3(centerX, -centerY, 0)
     const material = new MeshBasicMaterial({
       map: texture,
       // alphaMap: texture,
-      color: 0x2a6f72,
+      color: flyLineTheme.color ?? 0x2a6f72,
       transparent: true,
       fog: false,
       opacity: 1,
       depthTest: false,
       blending: AdditiveBlending,
     })
+    const flyLineTextureSpeedX = toNumber(flyLineTheme.textureSpeedX, -0.006)
     this.time.on("tick", () => {
-      texture.offset.x -= 0.006
+      texture.offset.x += flyLineTextureSpeedX
     })
     this.marketingCenters
       .filter((item) => item.id !== this.flyLineCenterId)
@@ -1893,7 +1950,7 @@ export class World extends Mini3d {
         let point = new Vector3(x, -y, 0)
         const center = new Vector3()
         center.addVectors(centerPoint, point).multiplyScalar(0.5)
-        center.setZ(3)
+        center.setZ(toNumber(flyLineTheme.centerArcHeight, 3))
         const curve = new QuadraticBezierCurve3(centerPoint, center, point)
         const tubeGeometry = new TubeGeometry(curve, tubeSegments, tubeRadius, tubeRadialSegments, closed)
         const mesh = new Mesh(tubeGeometry, material)
@@ -1905,7 +1962,11 @@ export class World extends Mini3d {
   }
   // 创建焦点
   createFocus() {
-    let focusObj = new Focus(this, { color1: 0xbdfdfd, color2: 0xbdfdfd })
+    const focusTheme = this.theme.focus || {}
+    let focusObj = new Focus(this, {
+      color1: focusTheme.color1 ?? 0xbdfdfd,
+      color2: focusTheme.color2 ?? 0xbdfdfd,
+    })
     let [x, y] = this.geoProjection(this.flyLineCenter)
     focusObj.position.set(x, -y, this.depth + 0.44)
     focusObj.scale.set(1, 1, 1)
@@ -1913,17 +1974,18 @@ export class World extends Mini3d {
   }
   // 创建粒子
   createParticles() {
+    const particlesTheme = this.theme.particles || {}
     this.particles = new Particles(this, {
-      num: 10,
-      range: 30,
-      dir: "up",
-      speed: 0.05,
+      num: toNumber(particlesTheme.num, 10),
+      range: toNumber(particlesTheme.range, 30),
+      dir: particlesTheme.dir ?? "up",
+      speed: toNumber(particlesTheme.speed, 0.05),
       material: new PointsMaterial({
         map: Particles.createTexture(),
-        size: 1,
-        color: 0x00eeee,
+        size: toNumber(particlesTheme.size, 1),
+        color: particlesTheme.color ?? 0x00eeee,
         transparent: true,
-        opacity: 1,
+        opacity: toNumber(particlesTheme.opacity, 1),
         depthTest: false,
         depthWrite: false,
         vertexColors: true,
@@ -1939,6 +2001,7 @@ export class World extends Mini3d {
     this.particleGroup.visible = true
   }
   createScatter() {
+    const scatterTheme = this.theme.scatter || {}
     this.scatterGroup = new Group()
     this.scatterGroup.visible = false
     this.scatterGroup.rotation.x = -Math.PI / 2
@@ -1946,17 +2009,19 @@ export class World extends Mini3d {
     const texture = this.assets.instance.getResource("arrow")
     const material = new SpriteMaterial({
       map: texture,
-      color: 0xfffef4,
+      color: scatterTheme.color ?? 0xfffef4,
       fog: false,
       transparent: true,
       depthTest: false,
     })
     let scatterAllData = sortByValue(scatterData)
     let max = scatterAllData[0].value
+    const scatterMinScale = toNumber(scatterTheme.minScale, 0.1)
+    const scatterScaleRange = toNumber(scatterTheme.scaleRange, 0.2)
     scatterAllData.map((data) => {
       const sprite = new Sprite(material)
       sprite.renderOrder = 23
-      let scale = 0.1 + (data.value / max) * 0.2
+      let scale = scatterMinScale + (data.value / max) * scatterScaleRange
       sprite.scale.set(scale, scale, scale)
       let [x, y] = this.geoProjection([data.lng, data.lat])
       sprite.position.set(x, -y, this.depth + 0.45)
@@ -1965,6 +2030,7 @@ export class World extends Mini3d {
     })
   }
   createInfoPoint() {
+    const infoPointTheme = this.theme.infoPoint || {}
     let self = this
     this.InfoPointGroup = new Group()
     this.scene.add(this.InfoPointGroup)
@@ -1975,9 +2041,12 @@ export class World extends Mini3d {
     this.infoLabelElement = []
     let label3d = this.label3d
     const texture = this.assets.instance.getResource("point")
-    let colors = [0xfffef4, 0x77fbf5]
+    let colors =
+      Array.isArray(infoPointTheme.colors) && infoPointTheme.colors.length ? infoPointTheme.colors : [0xfffef4, 0x77fbf5]
     let infoAllData = sortByValue(infoData)
     let max = infoAllData[0].value
+    const infoPointMinScale = toNumber(infoPointTheme.minScale, 0.7)
+    const infoPointScaleRange = toNumber(infoPointTheme.scaleRange, 0.4)
     infoAllData.map((data, index) => {
       const material = new SpriteMaterial({
         map: texture,
@@ -1988,7 +2057,7 @@ export class World extends Mini3d {
       })
       const sprite = new Sprite(material)
       sprite.renderOrder = 23
-      let scale = 0.7 + (data.value / max) * 0.4
+      let scale = infoPointMinScale + (data.value / max) * infoPointScaleRange
       sprite.scale.set(scale, scale, scale)
       let [x, y] = this.geoProjection([data.lng, data.lat])
       let position = [x, -y, this.depth + 0.7]
@@ -2069,10 +2138,12 @@ export class World extends Mini3d {
     }, 3000)
   }
   createStorke() {
+    const strokeTheme = this.theme.stroke || {}
+    const strokeTextureRepeat = resolveTuple(strokeTheme.textureRepeat, [2, 1])
     const mapStroke = this.getBusinessProvinceMapData("mapStroke")
     const texture = this.assets.instance.getResource("pathLine3")
     texture.wrapS = texture.wrapT = RepeatWrapping
-    texture.repeat.set(2, 1)
+    texture.repeat.set(strokeTextureRepeat[0], strokeTextureRepeat[1])
 
     let pathLine = new Line(this, {
       geoProjectionCenter: this.geoProjectionCenter,
@@ -2080,7 +2151,7 @@ export class World extends Mini3d {
       position: new Vector3(0, 0, this.depth + 0.24),
       data: mapStroke,
       material: new MeshBasicMaterial({
-        color: 0x2bc4dc,
+        color: strokeTheme.color ?? 0x2bc4dc,
         map: texture,
         alphaMap: texture,
         fog: false,
@@ -2090,12 +2161,13 @@ export class World extends Mini3d {
       }),
       type: "Line3",
       renderOrder: 22,
-      tubeRadius: 0.03,
+      tubeRadius: toNumber(strokeTheme.tubeRadius, 0.03),
     })
     // 设置父级
     this.focusMapGroup.add(pathLine.lineGroup)
+    const strokeTextureSpeedX = toNumber(strokeTheme.textureSpeedX, 0.005)
     this.time.on("tick", () => {
-      texture.offset.x += 0.005
+      texture.offset.x += strokeTextureSpeedX
     })
   }
 
