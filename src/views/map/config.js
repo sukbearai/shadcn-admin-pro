@@ -59,6 +59,17 @@ export const mapViewConfig = {
     returnLabel: "返回上级",
   },
   mapScene: {
+    skin: {
+      // 仅覆盖需要替换的皮肤字段，完整结构见 src/views/map/skin/index.js
+      assets: {
+        mapFiles: {
+          china: "assets/json/中华人民共和国.json",
+          mapJson: "assets/json/中华人民共和国.json",
+          mapStroke: "assets/json/中华人民共和国.json",
+        },
+      },
+      world: {},
+    },
     worldOptions: {
       rootName: "中国",
       showOtherProvinceLabels: true,

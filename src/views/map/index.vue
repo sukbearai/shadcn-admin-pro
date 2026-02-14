@@ -1,7 +1,7 @@
 <template>
   <div class="large-screen">
     <!-- 地图 -->
-    <mapScene ref="mapSceneRef" :world-options="mapViewConfig.mapScene.worldOptions"></mapScene>
+    <mapScene ref="mapSceneRef" :world-options="resolvedWorldOptions"></mapScene>
     <div class="large-screen-wrap" id="large-screen">
       <m-header :title="mapViewConfig.header.title" :sub-text="mapViewConfig.header.subText">
         <!--左侧 天气（暂时注释，后续可恢复）
@@ -105,7 +105,7 @@
   </div>
 </template>
 <script setup>
-import { shallowRef, ref, reactive, onMounted, onBeforeUnmount } from "vue"
+import { computed, shallowRef, ref, reactive, onMounted, onBeforeUnmount } from "vue"
 import mapScene from "./map.vue"
 import mHeader from "@/components/mHeader/index.vue"
 import mMenu from "@/components/mMenu/index.vue"
@@ -115,12 +115,18 @@ import mSvglineAnimation from "@/components/mSvglineAnimation/index.vue"
 
 import { Assets } from "./assets.js"
 import { mapViewConfig } from "./config"
+import { createMapSkin } from "./skin"
 import emitter from "@/utils/emitter"
 import gsap from "gsap"
 import autofit from "autofit.js"
 
 const assets = shallowRef(null)
 const mapSceneRef = ref(null)
+const resolvedMapSkin = createMapSkin(mapViewConfig.mapScene?.skin || {})
+const resolvedWorldOptions = computed(() => ({
+  ...(mapViewConfig.mapScene?.worldOptions || {}),
+  skin: resolvedMapSkin,
+}))
 const loadingChars = mapViewConfig.loading.text.split("")
 const state = reactive({
   // 进度
@@ -183,7 +189,7 @@ onBeforeUnmount(() => {
 })
 // 初始化加载资源
 function initAssets(onLoadCallback) {
-  assets.value = new Assets()
+  assets.value = new Assets({ skin: resolvedMapSkin })
   // 资源加载进度
   let params = {
     progress: 0,

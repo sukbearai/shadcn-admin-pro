@@ -59,3 +59,18 @@ PRs should include:
 - Keep secrets in `.env`; do not commit credentials.
 - Optimize large static assets before committing; place them in `public/` or `src/assets/`.
 - If adding drill-down map data, keep GeoJSON paths consistent with `public/assets/json/`.
+
+## Map Skinning Workflow
+Map skinning is centralized and should be done via the skin config layer instead of scattering hard-coded values.
+
+- Skin source of truth: `src/views/map/skin/index.js` (`defaultMapSkin` + `createMapSkin` deep merge).
+- Runtime skin entry: `src/views/map/config.js` -> `mapViewConfig.mapScene.skin`.
+- Asset loader binding: `src/views/map/assets.js` reads `skin.assets.textures` and `skin.assets.mapFiles`.
+- 3D world theme binding: `src/views/map/map.js` reads `skin.world` for scene, lights, materials, gradients, flyline, particles, stroke, etc.
+- Scene injection path: `src/views/map/index.vue` resolves skin and passes it into both `Assets` and `World`.
+
+When replacing map data/materials:
+- Prefer overriding only changed fields in `mapViewConfig.mapScene.skin` (partial override merge).
+- Keep resource keys stable (`china`, `mapJson`, `mapStroke`; and texture keys used by `getResource(...)`).
+- Ensure GeoJSON feature properties include at least `name`, `center`, `centroid`, `adcode`, `childrenNum` for labels/drill-down/fallback.
+- If custom drill-down local files are provided, keep naming consistent with existing `assets/json/{name}.json` or `assets/json/areas_v3/bound/{adcode}.json`.
