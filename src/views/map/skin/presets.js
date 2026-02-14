@@ -21,9 +21,9 @@ export const techGreenWorldSkin = {
   },
   china: {
     bgColor: "#1a3d5c",
-    bgOpacity: 0.9,
+    bgOpacity: 0.32,
     lineColor: "#63c4ef",
-    lineOpacity: 0.72,
+    lineOpacity: 0.24,
   },
   province: {
     topGradient: {
@@ -98,13 +98,13 @@ export const techGreenWorldSkin = {
     first: {
       widthScale: 1.178,
       rotateSpeed: 0.001,
-      opacity: 0.2,
+      opacity: 0.12,
       position: [0, 0.28, 0],
     },
     second: {
       widthScale: 1.116,
       rotateSpeed: -0.004,
-      opacity: 0.32,
+      opacity: 0.18,
       position: [0, 0.3, 0],
     },
   },
