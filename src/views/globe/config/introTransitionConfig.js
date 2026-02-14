@@ -28,6 +28,21 @@ const introTransitionConfig = {
         "people republic of china",
       ],
     },
+    mapStreamLine: {
+      enabled: true,
+      targetNames: [
+        "china",
+        "中华人民共和国",
+        "中国",
+      ],
+      style: {
+        color: "#ffffff",
+        opacity: 1,
+        speed: 0.55,
+        splitLine: 7.2,
+        duration: 7200,
+      },
+    },
     preloadProgress: {
       mapLoading: 0.08,
       mapReady: 0.5,

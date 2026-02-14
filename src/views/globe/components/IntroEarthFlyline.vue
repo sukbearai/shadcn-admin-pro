@@ -35,6 +35,13 @@ const INTRO_EARTH_SETTINGS = introTransitionConfig.introEarth
 const INTRO_MAP_NAME = INTRO_EARTH_SETTINGS.mapName
 const INTRO_MAP_DATA_SETTINGS = INTRO_EARTH_SETTINGS.mapData || {}
 const INTRO_ANIMATION_SETTINGS = INTRO_EARTH_SETTINGS.animation || {}
+const DEFAULT_CHINA_REGION_NAMES = [
+  "china",
+  "中华人民共和国",
+  "中国",
+  "people's republic of china",
+  "people republic of china",
+]
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -298,6 +305,116 @@ function normalizeFeatureCollection(raw) {
   }
 }
 
+function normalizeRegionName(value) {
+  return `${value || ""}`.trim().toLowerCase()
+}
+
+function resolveChinaRegionNames() {
+  const configuredNames = INTRO_EARTH_SETTINGS.mapStreamLine?.targetNames
+    || INTRO_EARTH_SETTINGS.clickToMap?.chinaRegionNames
+    || DEFAULT_CHINA_REGION_NAMES
+  return configuredNames.map((name) => normalizeRegionName(name)).filter(Boolean)
+}
+
+function isFeatureMatchedByRegionNames(feature, regionNames) {
+  if (!feature || !feature.properties || !regionNames.length) {
+    return false
+  }
+
+  const properties = feature.properties
+  const fieldCandidates = [
+    properties.name,
+    properties.NAME,
+    properties.name_en,
+    properties.NAME_EN,
+    properties.admin,
+    properties.ADMIN,
+    properties.name_long,
+    properties.NAME_LONG,
+  ]
+
+  const candidates = fieldCandidates
+    .filter((value) => value !== undefined && value !== null)
+    .map((value) => normalizeRegionName(value))
+    .filter(Boolean)
+
+  if (!candidates.length) {
+    Object.values(properties).forEach((value) => {
+      if (typeof value === "string") {
+        candidates.push(normalizeRegionName(value))
+      }
+    })
+  }
+
+  return candidates.some((candidate) => {
+    return regionNames.some((regionName) => {
+      return candidate === regionName || candidate.includes(regionName) || regionName.includes(candidate)
+    })
+  })
+}
+
+function findRegionFeatureByNames(mapGeoJson, regionNames) {
+  const features = Array.isArray(mapGeoJson?.features) ? mapGeoJson.features : []
+  return features.find((feature) => isFeatureMatchedByRegionNames(feature, regionNames)) || null
+}
+
+function resolveMapStreamGeometryList(geometry) {
+  if (!geometry) {
+    return []
+  }
+
+  if (geometry.type === "Polygon" && Array.isArray(geometry.coordinates)) {
+    return [geometry.coordinates]
+  }
+  if (geometry.type === "MultiPolygon" && Array.isArray(geometry.coordinates)) {
+    return geometry.coordinates
+  }
+  if (geometry.type === "GeometryCollection" && Array.isArray(geometry.geometries)) {
+    return geometry.geometries.flatMap((item) => resolveMapStreamGeometryList(item))
+  }
+  return []
+}
+
+function resolveIntroMapStreamLineStyle() {
+  const style = {
+    ...(INTRO_EARTH_SETTINGS.sceneConfig?.mapStreamStyle || {}),
+    ...(INTRO_EARTH_SETTINGS.mapStreamLine?.style || {}),
+  }
+  if (!style.color) {
+    style.color =
+      INTRO_EARTH_SETTINGS.sceneConfig?.mapStyle?.lineColor
+      || INTRO_EARTH_SETTINGS.sceneConfig?.pathStyle?.color
+      || INTRO_EARTH_SETTINGS.flyLineStyle?.color
+  }
+  return style
+}
+
+function createIntroMapStreamLineData(mapGeoJson) {
+  if (INTRO_EARTH_SETTINGS.mapStreamLine?.enabled === false) {
+    return []
+  }
+
+  const regionNames = resolveChinaRegionNames()
+  const regionFeature = findRegionFeatureByNames(mapGeoJson, regionNames)
+  if (!regionFeature) {
+    console.warn("[earth-flyline] mapStreamLine target region not found", regionNames)
+    return []
+  }
+
+  const polygonList = resolveMapStreamGeometryList(regionFeature.geometry)
+  if (!polygonList.length) {
+    return []
+  }
+
+  const streamLineStyle = resolveIntroMapStreamLineStyle()
+  return polygonList.map((coordinates) => {
+    return {
+      data: coordinates,
+      style: { ...streamLineStyle },
+    }
+  })
+}
+
 async function loadIntroMapGeoJson() {
   const baseUrl = import.meta.env.BASE_URL || "/"
   const sourcePaths = Array.isArray(INTRO_MAP_DATA_SETTINGS.sourcePaths) && INTRO_MAP_DATA_SETTINGS.sourcePaths.length
@@ -370,6 +487,7 @@ function createIntroConfig() {
         flyLineStyle: { ...sceneConfig.roadStyle.flyLineStyle },
         pathStyle: { ...sceneConfig.roadStyle.pathStyle },
       },
+      mapStreamStyle: { ...(sceneConfig.mapStreamStyle || {}) },
       scatterStyle: { ...sceneConfig.scatterStyle },
       hoverRegionStyle: { ...sceneConfig.hoverRegionStyle },
       barStyle: { ...sceneConfig.barStyle },
@@ -486,11 +604,20 @@ async function initIntroScene() {
     bindChartClickEvent()
     emitReadyProgress(INTRO_EARTH_SETTINGS.preloadProgress.sceneReady)
 
+    const mapStreamLineData = createIntroMapStreamLineData(mapGeoJson)
     await Promise.all([
       chartScene.setData("flyLine", createIntroFlyLineData()),
       chartScene.setData("point", createIntroPointData()),
       chartScene.setData("textMark", createIntroTextMarkData()),
+      ...(mapStreamLineData.length ? [chartScene.setData("mapStreamLine", mapStreamLineData[0])] : []),
     ])
+    if (mapStreamLineData.length > 1) {
+      await Promise.all(
+        mapStreamLineData
+          .slice(1)
+          .map((item) => chartScene.addData("mapStreamLine", item))
+      )
+    }
     focusChina()
     captureBaseViewState()
     emitReadyProgress(INTRO_EARTH_SETTINGS.preloadProgress.dataReady)
