@@ -6,17 +6,17 @@ export const techGreenWorldSkin = {
     backgroundColor: 0x081b31,
   },
   lights: {
-    ambient: { color: 0xffffff, intensity: 4.2 },
+    ambient: { color: 0xffffff, intensity: 3.1 },
     directional: {
       color: 0xffffff,
-      intensity: 4.5,
+      intensity: 3.2,
       position: [-26, 9, -7],
       shadowRadius: 16,
       shadowMapSize: [1024, 1024],
     },
     points: [
-      { color: "#2c9dca", intensity: 520, distance: 10000, x: -8, y: 3, z: -2 },
-      { color: "#25c7bd", intensity: 280, distance: 10000, x: 2, y: 2, z: 5 },
+      { color: "#2c9dca", intensity: 360, distance: 10000, x: -8, y: 3, z: -2 },
+      { color: "#25c7bd", intensity: 160, distance: 10000, x: 2, y: 2, z: 5 },
     ],
   },
   china: {
@@ -27,24 +27,24 @@ export const techGreenWorldSkin = {
   },
   province: {
     topGradient: {
-      color1: 0x38b9ee,
+      color1: 0x2f9dcb,
       color2: 0x1b3f63,
       axisSize: 15.78,
     },
     sideGradient: {
-      color1: 0x36b9e7,
-      color2: 0x2f8ab8,
+      color1: 0x2d9ec8,
+      color2: 0x2576a4,
       axisSize: 1.2,
     },
     topSurface: {
       baseColor: 0xffffff,
-      opacity: 0.6,
-      color1: 0x65d3ff,
-      color2: 0x2fb2e8,
+      opacity: 0.42,
+      color1: 0x53bde8,
+      color2: 0x258fc1,
     },
     hover: {
       color: "rgba(110,220,255,1)",
-      opacity: 0.9,
+      opacity: 0.72,
     },
   },
   bar: {
@@ -58,17 +58,17 @@ export const techGreenWorldSkin = {
     },
   },
   huiguang: {
-    opacity: 0.78,
-    width: 0.62,
+    opacity: 0.6,
+    width: 0.34,
     heightScale: 1.08,
     depthTest: false,
-    color: 0xdaf5ff,
+    color: 0xcbeeff,
   },
   diffuse: {
     size: 60,
     speed: 8,
-    color: 0x4cb6cf,
-    width: 2.3,
+    color: 0x3d9db4,
+    width: 1.9,
     duration: 6,
     targetTime: 4,
   },
