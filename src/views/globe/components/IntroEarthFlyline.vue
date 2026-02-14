@@ -8,8 +8,9 @@
 import { onBeforeUnmount, onMounted, ref } from "vue"
 import earthFlyLine from "earth-flyline"
 import gsap from "gsap"
-import marketingCenters, { FLYLINE_CENTER_ID } from "../map/marketingCenters"
+import marketingCenters, { FLYLINE_CENTER_ID } from "@/views/map/map/marketingCenters"
 import introTransitionConfig from "../config/introTransitionConfig"
+import { DEFAULT_CHINA_REGION_NAMES } from "@/views/shared/viewConstants"
 
 const stageRef = ref(null)
 const layerRef = ref(null)
@@ -35,13 +36,6 @@ const INTRO_EARTH_SETTINGS = introTransitionConfig.introEarth
 const INTRO_MAP_NAME = INTRO_EARTH_SETTINGS.mapName
 const INTRO_MAP_DATA_SETTINGS = INTRO_EARTH_SETTINGS.mapData || {}
 const INTRO_ANIMATION_SETTINGS = INTRO_EARTH_SETTINGS.animation || {}
-const DEFAULT_CHINA_REGION_NAMES = [
-  "china",
-  "中华人民共和国",
-  "中国",
-  "people's republic of china",
-  "people republic of china",
-]
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))

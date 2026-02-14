@@ -7,7 +7,7 @@
     <IntroEarthFlyline :active="state.showEarthIntro" ref="introEarthFlylineRef"></IntroEarthFlyline>
     <!-- 全屏云层（独立于地图） -->
     <ScreenCloudLayer ref="screenCloudLayerRef"></ScreenCloudLayer>
-    <div class="large-screen-wrap" id="large-screen" :class="{ 'is-earth-intro': state.showEarthIntro }">
+    <div class="large-screen-wrap" :id="VIEW_IDS.LARGE_SCREEN" :class="{ 'is-earth-intro': state.showEarthIntro }">
       <m-header :title="globeViewConfig.header.title" :sub-text="globeViewConfig.header.subText">
         <!--左侧 天气（暂时注释，后续可恢复）
         <template v-slot:left>
@@ -59,11 +59,11 @@
         <!-- svg线条动画 -->
         <mSvglineAnimation class="bottom-svg-line-left" :width="721" :height="57" color="#30DCFF" :strokeWidth="2"
           :dir="[0, 1]" :length="50"
-          path="M1 56.6105C1 31.5123 185.586 10.0503 451.904 1.35519C458.942 1.12543 465.781 4.00883 470.505 9.22964L484.991 25.2383C487.971 28.4775 492.938 30.4201 498.254 30.4201H720.142">
+          :path="BOTTOM_TRAY_SVG_PATH">
         </mSvglineAnimation>
         <mSvglineAnimation class="bottom-svg-line-left bottom-svg-line-right" :width="721" :height="57" color="#30DCFF"
           :strokeWidth="2" :dir="[0, 1]" :length="50"
-          path="M1 56.6105C1 31.5123 185.586 10.0503 451.904 1.35519C458.942 1.12543 465.781 4.00883 470.505 9.22964L484.991 25.2383C487.971 28.4775 492.938 30.4201 498.254 30.4201H720.142">
+          :path="BOTTOM_TRAY_SVG_PATH">
         </mSvglineAnimation>
         <!-- 左箭头 -->
         <div class="bottom-tray-arrow">
@@ -140,6 +140,15 @@ import { createMapSkin } from "../map/skin"
 import emitter from "@/utils/emitter"
 import gsap from "gsap"
 import autofit from "autofit.js"
+import {
+  BOTTOM_TRAY_SVG_PATH,
+  CHINA_REGION_TYPE as DEFAULT_CHINA_REGION_TYPE,
+  DEFAULT_CHINA_REGION_NAMES,
+  DEFAULT_MENU_ACTIVE_INDEX,
+  VIEW_EVENTS,
+  VIEW_IDS,
+  VIEW_SELECTORS,
+} from "../shared/viewConstants"
 
 const assets = shallowRef(null)
 const mapSceneRef = ref(null)
@@ -158,7 +167,8 @@ const LOADING_SETTINGS = INTRO_TRANSITION_SETTINGS.loading || {}
 const LOADING_TWEEN_SETTINGS = LOADING_SETTINGS.tweenDuration || {}
 const LOADING_HIDE_SETTINGS = LOADING_SETTINGS.hideAnimation || {}
 const CHINA_CLICK_SETTINGS = INTRO_EARTH_SETTINGS.clickToMap || {}
-const CHINA_REGION_TYPE = CHINA_CLICK_SETTINGS.chinaRegionType || "country"
+const CHINA_REGION_TYPE = CHINA_CLICK_SETTINGS.chinaRegionType || DEFAULT_CHINA_REGION_TYPE
+const CHINA_MATCH_KEYWORD = DEFAULT_CHINA_REGION_NAMES[0]
 const EARTH_RENDERABLE_TIMEOUT = Number(INTRO_EARTH_SETTINGS.mapData?.renderableTimeout ?? 9000)
 const loadingProgress = reactive({
   assets: 0,
@@ -178,7 +188,8 @@ const state = reactive({
   // 是否展示 idle 云层
   cloudIdleVisible: CLOUD_TRANSITION_SETTINGS.idleVisible !== false,
   // 当前顶部导航索引
-  activeIndex: globeViewConfig.menu.defaultActiveIndex || globeViewConfig.menu.items[0]?.index || "1",
+  activeIndex:
+    globeViewConfig.menu.defaultActiveIndex || globeViewConfig.menu.items[0]?.index || DEFAULT_MENU_ACTIVE_INDEX,
   // 头部日期
   currentDate: "",
   // 头部时间
@@ -198,7 +209,7 @@ const LOADING_WEIGHTS = {
 const CHINA_REGION_NAMES = new Set(
   (Array.isArray(CHINA_CLICK_SETTINGS.chinaRegionNames) && CHINA_CLICK_SETTINGS.chinaRegionNames.length
     ? CHINA_CLICK_SETTINGS.chinaRegionNames
-    : ["china", "中华人民共和国", "中国", "people's republic of china", "people republic of china"]
+    : DEFAULT_CHINA_REGION_NAMES
   ).map((name) => `${name ?? ""}`.trim().toLowerCase())
 )
 
@@ -245,7 +256,7 @@ function isChinaRegionClick(params) {
   if (!normalizedName) {
     return false
   }
-  return CHINA_REGION_NAMES.has(normalizedName) || normalizedName.includes("china")
+  return CHINA_REGION_NAMES.has(normalizedName) || normalizedName.includes(CHINA_MATCH_KEYWORD)
 }
 
 function unbindEarthIntroClick() {
@@ -382,14 +393,14 @@ onMounted(() => {
   }, 1000)
 
   // 监听地图播放完成，执行事件
-  emitter.$on("mapPlayComplete", handleMapPlayComplete)
+  emitter.$on(VIEW_EVENTS.MAP_PLAY_COMPLETE, handleMapPlayComplete)
   // 自动适配
   autofit.init(globeViewConfig.autofit)
   // 初始化资源
   initAssets(async () => {
     await earthIntroReadyPromise
     // 加载地图
-    emitter.$emit("loadMap", assets.value)
+    emitter.$emit(VIEW_EVENTS.LOAD_MAP, assets.value)
     // 等待地球场景可渲染，避免loading结束后空窗
     await prepareEarthIntroReveal()
     // loading结束后默认展示地球，等待用户点击中国
@@ -413,12 +424,12 @@ onMounted(() => {
   })
 })
 onBeforeUnmount(() => {
-  emitter.$off("mapPlayComplete", handleMapPlayComplete)
+  emitter.$off(VIEW_EVENTS.MAP_PLAY_COMPLETE, handleMapPlayComplete)
   unbindEarthIntroClick()
   state.awaitingChinaClick = false
   state.hasStartedMapTransition = false
   screenCloudLayerRef.value?.resetIntro?.()
-  autofit.off("#large-screen")
+  autofit.off(VIEW_SELECTORS.LARGE_SCREEN)
   if (clockTimer) {
     clearInterval(clockTimer)
     clockTimer = null
@@ -449,16 +460,16 @@ async function hideLoading() {
   const overlapOffset = Number(LOADING_HIDE_SETTINGS.overlapOffset ?? 0.18)
   return new Promise((resolve, reject) => {
     let tl = gsap.timeline()
-    tl.to(".loading-text span", {
+    tl.to(VIEW_SELECTORS.LOADING_TEXT_CHARS, {
       y: textTranslateY,
       opacity: 0,
       ease: "power2.inOut",
       duration: textDuration,
       stagger: textStagger,
     })
-    tl.to(".loading-progress", { opacity: 0, ease: "power2.inOut", duration: progressDuration }, "<")
+    tl.to(VIEW_SELECTORS.LOADING_PROGRESS, { opacity: 0, ease: "power2.inOut", duration: progressDuration }, "<")
     tl.to(
-      ".loading",
+      VIEW_SELECTORS.LOADING_LAYER,
       {
         opacity: 0,
         duration: layerDuration,
@@ -578,17 +589,17 @@ async function playEarthFlylineIntro(options = {}) {
 // 地图开始动画播放完成
 function handleMapPlayComplete() {
   let tl = gsap.timeline({ paused: false })
-  let leftCards = gsap.utils.toArray(".left-card")
-  let rightCards = gsap.utils.toArray(".right-card")
-  let countCards = gsap.utils.toArray(".count-card")
+  let leftCards = gsap.utils.toArray(VIEW_SELECTORS.LEFT_CARD)
+  let rightCards = gsap.utils.toArray(VIEW_SELECTORS.RIGHT_CARD)
+  let countCards = gsap.utils.toArray(VIEW_SELECTORS.COUNT_CARD)
   tl.addLabel("start", 0.5)
   tl.addLabel("menu", 0.5)
   tl.addLabel("card", 1)
   tl.addLabel("countCard", 3)
-  tl.to(".m-header", { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
-  tl.to(".bottom-tray", { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
+  tl.to(VIEW_SELECTORS.HEADER, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
+  tl.to(VIEW_SELECTORS.BOTTOM_TRAY, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
   tl.to(
-    ".top-menu",
+    VIEW_SELECTORS.TOP_MENU,
     {
       y: 0,
       opacity: 1,
@@ -597,7 +608,7 @@ function handleMapPlayComplete() {
     },
     "-=1"
   )
-  tl.to(".bottom-radar", { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "-=2")
+  tl.to(VIEW_SELECTORS.BOTTOM_RADAR, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "-=2")
   tl.to(leftCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
   tl.to(rightCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
   tl.to(

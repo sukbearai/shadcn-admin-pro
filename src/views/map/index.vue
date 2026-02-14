@@ -2,7 +2,7 @@
   <div class="large-screen">
     <!-- 地图 -->
     <mapScene ref="mapSceneRef" :world-options="resolvedWorldOptions"></mapScene>
-    <div class="large-screen-wrap" id="large-screen">
+    <div class="large-screen-wrap" :id="VIEW_IDS.LARGE_SCREEN">
       <m-header :title="mapViewConfig.header.title" :sub-text="mapViewConfig.header.subText">
         <!--左侧 天气（暂时注释，后续可恢复）
         <template v-slot:left>
@@ -54,11 +54,11 @@
         <!-- svg线条动画 -->
         <mSvglineAnimation class="bottom-svg-line-left" :width="721" :height="57" color="#30DCFF" :strokeWidth="2"
           :dir="[0, 1]" :length="50"
-          path="M1 56.6105C1 31.5123 185.586 10.0503 451.904 1.35519C458.942 1.12543 465.781 4.00883 470.505 9.22964L484.991 25.2383C487.971 28.4775 492.938 30.4201 498.254 30.4201H720.142">
+          :path="BOTTOM_TRAY_SVG_PATH">
         </mSvglineAnimation>
         <mSvglineAnimation class="bottom-svg-line-left bottom-svg-line-right" :width="721" :height="57" color="#30DCFF"
           :strokeWidth="2" :dir="[0, 1]" :length="50"
-          path="M1 56.6105C1 31.5123 185.586 10.0503 451.904 1.35519C458.942 1.12543 465.781 4.00883 470.505 9.22964L484.991 25.2383C487.971 28.4775 492.938 30.4201 498.254 30.4201H720.142">
+          :path="BOTTOM_TRAY_SVG_PATH">
         </mSvglineAnimation>
         <!-- 做箭头 -->
         <div class="bottom-tray-arrow return-related">
@@ -119,6 +119,13 @@ import { createMapSkin } from "./skin"
 import emitter from "@/utils/emitter"
 import gsap from "gsap"
 import autofit from "autofit.js"
+import {
+  BOTTOM_TRAY_SVG_PATH,
+  DEFAULT_MENU_ACTIVE_INDEX,
+  VIEW_EVENTS,
+  VIEW_IDS,
+  VIEW_SELECTORS,
+} from "../shared/viewConstants"
 
 const assets = shallowRef(null)
 const mapSceneRef = ref(null)
@@ -132,7 +139,7 @@ const state = reactive({
   // 进度
   progress: 0,
   // 当前顶部导航索引
-  activeIndex: mapViewConfig.menu.defaultActiveIndex || mapViewConfig.menu.items[0]?.index || "1",
+  activeIndex: mapViewConfig.menu.defaultActiveIndex || mapViewConfig.menu.items[0]?.index || DEFAULT_MENU_ACTIVE_INDEX,
   // 头部日期
   currentDate: "",
   // 头部时间
@@ -166,13 +173,13 @@ onMounted(() => {
   }, 1000)
 
   // 监听地图播放完成，执行事件
-  emitter.$on("mapPlayComplete", handleMapPlayComplete)
+  emitter.$on(VIEW_EVENTS.MAP_PLAY_COMPLETE, handleMapPlayComplete)
   // 自动适配
   autofit.init(mapViewConfig.autofit)
   // 初始化资源
   initAssets(async () => {
     // 加载地图
-    emitter.$emit("loadMap", assets.value)
+    emitter.$emit(VIEW_EVENTS.LOAD_MAP, assets.value)
     // 隐藏loading
     await hideLoading()
     // 播放场景
@@ -180,8 +187,8 @@ onMounted(() => {
   })
 })
 onBeforeUnmount(() => {
-  emitter.$off("mapPlayComplete", handleMapPlayComplete)
-  autofit.off("#large-screen")
+  emitter.$off(VIEW_EVENTS.MAP_PLAY_COMPLETE, handleMapPlayComplete)
+  autofit.off(VIEW_SELECTORS.LARGE_SCREEN)
   if (clockTimer) {
     clearInterval(clockTimer)
     clockTimer = null
@@ -213,16 +220,16 @@ function initAssets(onLoadCallback) {
 async function hideLoading() {
   return new Promise((resolve, reject) => {
     let tl = gsap.timeline()
-    tl.to(".loading-text span", {
+    tl.to(VIEW_SELECTORS.LOADING_TEXT_CHARS, {
       y: "200%",
       opacity: 0,
       ease: "power4.inOut",
       duration: 2,
       stagger: 0.2,
     })
-    tl.to(".loading-progress", { opacity: 0, ease: "power4.inOut", duration: 2 }, "<")
+    tl.to(VIEW_SELECTORS.LOADING_PROGRESS, { opacity: 0, ease: "power4.inOut", duration: 2 }, "<")
     tl.to(
-      ".loading",
+      VIEW_SELECTORS.LOADING_LAYER,
       {
         opacity: 0,
         ease: "power4.inOut",
@@ -245,17 +252,17 @@ function goBack() {
 // 地图开始动画播放完成
 function handleMapPlayComplete() {
   let tl = gsap.timeline({ paused: false })
-  let leftCards = gsap.utils.toArray(".left-card")
-  let rightCards = gsap.utils.toArray(".right-card")
-  let countCards = gsap.utils.toArray(".count-card")
+  let leftCards = gsap.utils.toArray(VIEW_SELECTORS.LEFT_CARD)
+  let rightCards = gsap.utils.toArray(VIEW_SELECTORS.RIGHT_CARD)
+  let countCards = gsap.utils.toArray(VIEW_SELECTORS.COUNT_CARD)
   tl.addLabel("start", 0.5)
   tl.addLabel("menu", 0.5)
   tl.addLabel("card", 1)
   tl.addLabel("countCard", 3)
-  tl.to(".m-header", { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
-  tl.to(".bottom-tray", { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
+  tl.to(VIEW_SELECTORS.HEADER, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
+  tl.to(VIEW_SELECTORS.BOTTOM_TRAY, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
   tl.to(
-    ".top-menu",
+    VIEW_SELECTORS.TOP_MENU,
     {
       y: 0,
       opacity: 1,
@@ -264,7 +271,7 @@ function handleMapPlayComplete() {
     },
     "-=1"
   )
-  tl.to(".bottom-radar", { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "-=2")
+  tl.to(VIEW_SELECTORS.BOTTOM_RADAR, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "-=2")
   tl.to(leftCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
   tl.to(rightCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
   tl.to(

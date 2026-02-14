@@ -1,41 +1,43 @@
 <template>
   <div class="map">
-    <canvas id="canvasMap"></canvas>
+    <canvas :id="VIEW_IDS.MAP_CANVAS"></canvas>
   </div>
 </template>
 <script setup>
-import { onMounted, shallowRef, onBeforeUnmount } from "vue";
-import { World } from "./map.js";
-import emitter from "@/utils/emitter";
+import { onMounted, shallowRef, onBeforeUnmount } from "vue"
+import { World } from "./map.js"
+import emitter from "@/utils/emitter"
+import { VIEW_EVENTS, VIEW_IDS } from "../shared/viewConstants"
+
 const props = defineProps({
   worldOptions: {
     type: Object,
     default: () => ({}),
   },
 })
-const canvasMap = shallowRef(null);
+const canvasMap = shallowRef(null)
 onMounted(() => {
-  emitter.$on("loadMap", loadMap);
-});
+  emitter.$on(VIEW_EVENTS.LOAD_MAP, loadMap)
+})
 onBeforeUnmount(() => {
-  canvasMap.value && canvasMap.value.destroy();
-  emitter.$off("loadMap", loadMap);
-});
+  canvasMap.value && canvasMap.value.destroy()
+  emitter.$off(VIEW_EVENTS.LOAD_MAP, loadMap)
+})
 function loadMap(assets) {
-  canvasMap.value = new World(document.getElementById("canvasMap"), assets, props.worldOptions);
-  canvasMap.value.time.pause();
+  canvasMap.value = new World(document.getElementById(VIEW_IDS.MAP_CANVAS), assets, props.worldOptions)
+  canvasMap.value.time.pause()
 }
 function goBack() {
-  canvasMap.value && canvasMap.value.goBack();
+  canvasMap.value && canvasMap.value.goBack()
 }
 function resetScene() {
-  canvasMap.value && canvasMap.value.resetScene();
+  canvasMap.value && canvasMap.value.resetScene()
 }
 async function play() {
-  if (!canvasMap.value) return;
-  canvasMap.value.time.resume();
-  canvasMap.value.animateTl.timeScale(1); // 设置播放速度正常
-  canvasMap.value.animateTl.restart();
+  if (!canvasMap.value) return
+  canvasMap.value.time.resume()
+  canvasMap.value.animateTl.timeScale(1) // 设置播放速度正常
+  canvasMap.value.animateTl.restart()
 }
 defineExpose({
   loadMap,
@@ -43,7 +45,7 @@ defineExpose({
   goBack,
   resetScene,
   canvasMap,
-});
+})
 </script>
 
 <style lang="scss">

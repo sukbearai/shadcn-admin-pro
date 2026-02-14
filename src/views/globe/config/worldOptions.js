@@ -1,20 +1,21 @@
 import { techGreenWorldSkin } from "@/views/map/skin/presets"
+import { MAP_FOCUS_LABELS, MAP_RESOURCE_KEYS, REGION_NAMES } from "@/views/shared/viewConstants"
 
 const globeWorldOptions = {
-  rootName: "江苏省",
+  rootName: REGION_NAMES.JIANGSU,
   geoProjectionCenter: [119.486506, 32.983991],
   geoProjectionScale: 75,
   skin: {
     world: techGreenWorldSkin,
   },
-  businessProvinceNames: ["江苏省"],
+  businessProvinceNames: [REGION_NAMES.JIANGSU],
   resourceNames: {
-    mapJson: "jiangsu",
-    mapStroke: "jiangsu",
+    [MAP_RESOURCE_KEYS.MAP_JSON]: "jiangsu",
+    [MAP_RESOURCE_KEYS.MAP_STROKE]: "jiangsu",
   },
   mapFocusLabelInfo: {
-    name: "江苏省",
-    enName: "JIANGSU PROVINCE",
+    name: REGION_NAMES.JIANGSU,
+    enName: MAP_FOCUS_LABELS.JIANGSU_EN,
     center: [119.486506, 29.8],
   },
   initialCameraPosition: [-12.8, 12.2, 27.8],
@@ -29,11 +30,11 @@ const globeWorldOptions = {
   marketingCenters: [
     {
       id: "nanjing",
-      name: "南京",
+      name: REGION_NAMES.NANJING,
       enName: "NANJING",
-      labelName: "南京市",
-      provinceName: "江苏省",
-      cityName: "南京市",
+      labelName: REGION_NAMES.NANJING_CITY,
+      provinceName: REGION_NAMES.JIANGSU,
+      cityName: REGION_NAMES.NANJING_CITY,
       lng: 118.767413,
       lat: 32.041544,
       value: 168,

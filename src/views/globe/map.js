@@ -48,66 +48,31 @@ import {
 
 import { geoMercator } from "d3-geo"
 import labelIcon from "@/assets/texture/label-icon.png"
-import marketingCenters, { FLYLINE_CENTER_ID } from "./map/marketingCenters"
-import scatterData from "./map/scatter"
-import infoData from "./map/infoData"
+import marketingCenters, { FLYLINE_CENTER_ID } from "@/views/map/map/marketingCenters"
+import scatterData from "@/views/map/map/scatter"
+import infoData from "@/views/map/map/infoData"
 import gsap from "gsap"
 import emitter from "@/utils/emitter"
 import { InteractionManager } from "three.interactive"
-import { ChildMap } from "./map/childMap"
+import { ChildMap } from "@/views/map/map/childMap"
 import { createMapSkin } from "../map/skin"
-function sortByValue(data) {
-  data.sort((a, b) => b.value - a.value)
-  return data
-}
-
-const integerFormatter = new Intl.NumberFormat("zh-CN", {
-  maximumFractionDigits: 0,
-})
-
-function toNumber(value, defaultValue = 0) {
-  const numeric =
-    typeof value === "number"
-      ? value
-      : Number(
-          `${value ?? ""}`
-            .trim()
-            .replace(/,/g, "")
-        )
-  return Number.isFinite(numeric) ? numeric : defaultValue
-}
-
-function formatInteger(value) {
-  return integerFormatter.format(Math.round(toNumber(value, 0)))
-}
-
-function resolveChildMapSuffix(childrenNum) {
-  return childrenNum === 0 ? ".json" : "_full.json"
-}
-
-function resolveVector3State(value, fallback) {
-  if (value instanceof Vector3) {
-    return value.clone()
-  }
-  if (Array.isArray(value) && value.length === 3) {
-    return new Vector3(toNumber(value[0], fallback.x), toNumber(value[1], fallback.y), toNumber(value[2], fallback.z))
-  }
-  if (value && typeof value === "object") {
-    return new Vector3(
-      toNumber(value.x, fallback.x),
-      toNumber(value.y, fallback.y),
-      toNumber(value.z, fallback.z)
-    )
-  }
-  return fallback.clone()
-}
-
-function resolveTuple(value, fallback = []) {
-  if (Array.isArray(value) && value.length === fallback.length) {
-    return value.map((item, index) => toNumber(item, fallback[index]))
-  }
-  return [...fallback]
-}
+import {
+  DEFAULT_MAP_RESOURCE_NAMES,
+  MAP_FOCUS_LABELS,
+  MAP_RESOURCE_KEYS,
+  MAP_SCENE_NAMES,
+  REGION_NAMES,
+  VIEW_EVENTS,
+  VIEW_SELECTORS,
+} from "../shared/viewConstants"
+import {
+  formatInteger,
+  resolveChildMapSuffix,
+  resolveTuple,
+  resolveVector3State,
+  sortByValue,
+  toNumber,
+} from "../shared/worldUtils"
 
 function resolveCloudLayerConfig(config, depth) {
   const defaultConfig = {
@@ -151,9 +116,7 @@ export class World extends Mini3d {
     const resolvedMarketingCenters =
       Array.isArray(options.marketingCenters) && options.marketingCenters.length ? options.marketingCenters : marketingCenters
     this.resourceNames = {
-      china: "china",
-      mapJson: "mapJson",
-      mapStroke: "mapStroke",
+      ...DEFAULT_MAP_RESOURCE_NAMES,
       ...(options.resourceNames || {}),
     }
 
@@ -188,8 +151,8 @@ export class World extends Mini3d {
     // 地图拉伸高度
     this.depth = 0.5
     const defaultMapFocusLabelInfo = {
-      name: "全国分布中心",
-      enName: "NATIONAL DISTRIBUTION CENTER",
+      name: MAP_FOCUS_LABELS.NATIONAL_CENTER_CN,
+      enName: MAP_FOCUS_LABELS.NATIONAL_CENTER_EN,
       center: [106, 20],
     }
     this.mapFocusLabelInfo = {
@@ -221,8 +184,8 @@ export class World extends Mini3d {
     // 是否点击
     this.clicked = false
     // 当前场景 mainScene | childScene
-    this.currentScene = "mainScene"
-    this.rootHistoryState = { name: options.rootName || "中国" }
+    this.currentScene = MAP_SCENE_NAMES.MAIN
+    this.rootHistoryState = { name: options.rootName || REGION_NAMES.CHINA }
     // 下钻历史
     this.history = new createHistory()
     this.history.push({ ...this.rootHistoryState })
@@ -233,8 +196,8 @@ export class World extends Mini3d {
     // 主场景可见性快照
     this.mainSceneVisibilityState = null
     // 返回按钮
-    this.returnBtn = document.querySelector(".return-btn")
-    this.returnRelatedElements = [...document.querySelectorAll(".return-related")]
+    this.returnBtn = document.querySelector(VIEW_SELECTORS.RETURN_BUTTON)
+    this.returnRelatedElements = [...document.querySelectorAll(VIEW_SELECTORS.RETURN_RELATED)]
     this.setReturnButtonVisible(false)
     // 省份侧面流光贴图（全局复用，避免重复绑定 tick 导致流速叠加）
     this.sideFlowTexture = null
@@ -465,7 +428,7 @@ export class World extends Mini3d {
         ease: "circ.out",
         onComplete: () => {
           this.flyLineFocusGroup.visible = true
-          emitter.$emit("mapPlayComplete")
+          emitter.$emit(VIEW_EVENTS.MAP_PLAY_COMPLETE)
         },
       },
       "focusMapOpacity"
@@ -764,7 +727,7 @@ export class World extends Mini3d {
     return filteredGeoData
   }
   getBusinessProvinceAnchorMap() {
-    const mapData = this.getBusinessProvinceMapData("mapJson")
+    const mapData = this.getBusinessProvinceMapData(MAP_RESOURCE_KEYS.MAP_JSON)
     let geoData = mapData
 
     if (typeof mapData === "string") {
@@ -792,7 +755,7 @@ export class World extends Mini3d {
     return anchorMap
   }
   getMainRegionLabelData() {
-    const mapData = this.getBusinessProvinceMapData("mapJson")
+    const mapData = this.getBusinessProvinceMapData(MAP_RESOURCE_KEYS.MAP_JSON)
     let geoData = mapData
 
     if (typeof mapData === "string") {
@@ -828,7 +791,7 @@ export class World extends Mini3d {
       lineColor: chinaTheme.lineColor ?? "#63b8ec",
       lineOpacity: toNumber(chinaTheme.lineOpacity, 0.72),
     }
-    let chinaData = this.getMapData("china")
+    let chinaData = this.getMapData(MAP_RESOURCE_KEYS.CHINA)
     let chinaBgMaterial = new MeshLambertMaterial({
       color: new Color(params.chinaBgMaterialColor),
       transparent: true,
@@ -944,7 +907,7 @@ export class World extends Mini3d {
   }
 
   createProvince() {
-    let mapJsonData = this.getBusinessProvinceMapData("mapJson")
+    let mapJsonData = this.getBusinessProvinceMapData(MAP_RESOURCE_KEYS.MAP_JSON)
     let provinceLayer = this.createProvinceLayer({
       mapJsonData,
       geoProjectionCenter: this.geoProjectionCenter,
@@ -1194,7 +1157,7 @@ export class World extends Mini3d {
     this.eventElement.map((mesh) => {
       this.interactionManager.add(mesh)
       mesh.addEventListener("mousedown", (event) => {
-        if (this.clicked || this.currentScene !== "mainScene") return false
+        if (this.clicked || this.currentScene !== MAP_SCENE_NAMES.MAIN) return false
         this.clicked = true
         let userData = event.target.parent.userData
         if (!userData?.adcode || !userData?.childrenNum) {
@@ -1212,7 +1175,7 @@ export class World extends Mini3d {
         if (!objectsHover.includes(event.target.parent)) {
           objectsHover.push(event.target.parent)
         }
-        if (this.currentScene !== "mainScene") {
+        if (this.currentScene !== MAP_SCENE_NAMES.MAIN) {
           return false
         }
         document.body.style.cursor = "pointer"
@@ -1281,7 +1244,7 @@ export class World extends Mini3d {
       return
     }
 
-    const isEnterFromMainScene = this.currentScene === "mainScene"
+    const isEnterFromMainScene = this.currentScene === MAP_SCENE_NAMES.MAIN
     const loadSeq = ++this.childMapLoadSeq
 
     this.getChildMapData(userData, (data) => {
@@ -1309,7 +1272,7 @@ export class World extends Mini3d {
       if (isEnterFromMainScene) {
         this.setMainMapVisible(false)
       }
-      this.currentScene = "childScene"
+      this.currentScene = MAP_SCENE_NAMES.CHILD
       this.setReturnButtonVisible(true)
       this.applyCameraState(this.getChildCameraState(), 0.6)
       this.clicked = false
@@ -1404,7 +1367,7 @@ export class World extends Mini3d {
   }
 
   getProvinceFallbackGeoData(adcode) {
-    const mapData = this.getBusinessProvinceMapData("mapJson")
+    const mapData = this.getBusinessProvinceMapData(MAP_RESOURCE_KEYS.MAP_JSON)
     let geoData = mapData
 
     if (typeof mapData === "string") {
@@ -1522,7 +1485,7 @@ export class World extends Mini3d {
 
   resetScene(duration = 0) {
     this.childMapLoadSeq += 1
-    this.currentScene = "mainScene"
+    this.currentScene = MAP_SCENE_NAMES.MAIN
     this.clicked = false
     this.childMap && this.childMap.destroy()
     this.childMap = null
@@ -1534,7 +1497,7 @@ export class World extends Mini3d {
   }
 
   goBack() {
-    if (this.currentScene !== "childScene") {
+    if (this.currentScene !== MAP_SCENE_NAMES.CHILD) {
       return
     }
     this.childMapLoadSeq += 1
@@ -1542,7 +1505,7 @@ export class World extends Mini3d {
     this.history.undo()
 
     if (!this.history.getIndex()) {
-      this.currentScene = "mainScene"
+      this.currentScene = MAP_SCENE_NAMES.MAIN
       this.childMap && this.childMap.destroy()
       this.childMap = null
       this.setMainMapVisible(true)
@@ -2146,7 +2109,7 @@ export class World extends Mini3d {
   createStorke() {
     const strokeTheme = this.theme.stroke || {}
     const strokeTextureRepeat = resolveTuple(strokeTheme.textureRepeat, [2, 1])
-    const mapStroke = this.getBusinessProvinceMapData("mapStroke")
+    const mapStroke = this.getBusinessProvinceMapData(MAP_RESOURCE_KEYS.MAP_STROKE)
     const texture = this.assets.instance.getResource("pathLine3")
     texture.wrapS = texture.wrapT = RepeatWrapping
     texture.repeat.set(strokeTextureRepeat[0], strokeTextureRepeat[1])

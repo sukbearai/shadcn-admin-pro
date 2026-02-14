@@ -1,11 +1,15 @@
+import {
+  CHINA_REGION_TYPE,
+  DEFAULT_CHINA_REGION_NAMES,
+  MAP_FILE_PATHS,
+  REGION_NAMES,
+} from "@/views/shared/viewConstants"
+
 const introTransitionConfig = {
   introEarth: {
     mapName: "intro_globe_map",
     mapData: {
-      sourcePaths: [
-        "assets/json/world.json",
-        "assets/json/中华人民共和国.json",
-      ],
+      sourcePaths: [MAP_FILE_PATHS.WORLD, MAP_FILE_PATHS.CHINA],
       useEncodedFallback: true,
       fetchOptions: {
         referrerPolicy: "no-referrer",
@@ -19,22 +23,12 @@ const introTransitionConfig = {
       rollZ: 0.18,
     },
     clickToMap: {
-      chinaRegionType: "country",
-      chinaRegionNames: [
-        "china",
-        "中华人民共和国",
-        "中国",
-        "people's republic of china",
-        "people republic of china",
-      ],
+      chinaRegionType: CHINA_REGION_TYPE,
+      chinaRegionNames: [...DEFAULT_CHINA_REGION_NAMES],
     },
     mapStreamLine: {
       enabled: true,
-      targetNames: [
-        "china",
-        "中华人民共和国",
-        "中国",
-      ],
+      targetNames: [...DEFAULT_CHINA_REGION_NAMES],
       style: {
         color: "#ffffff",
         opacity: 1,
@@ -140,7 +134,7 @@ const introTransitionConfig = {
         fontSize: 22,
         color: "#ffdf7a",
       },
-      centerFallbackText: "南京市",
+      centerFallbackText: REGION_NAMES.NANJING_CITY,
     },
     animation: {
       cameraPushScale: 0.52,
