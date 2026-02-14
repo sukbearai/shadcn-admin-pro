@@ -57,6 +57,13 @@ export const techGreenWorldSkin = {
       color2: 0xeaffd7,
     },
   },
+  huiguang: {
+    opacity: 0.78,
+    width: 0.62,
+    heightScale: 1.08,
+    depthTest: false,
+    color: 0xdaf5ff,
+  },
   diffuse: {
     size: 60,
     speed: 8,

@@ -121,6 +121,9 @@ export const defaultMapSkin = {
     },
     huiguang: {
       opacity: 0.4,
+      width: 0.35,
+      heightScale: 1,
+      depthTest: false,
     },
     diffuse: {
       size: 60,
@@ -252,4 +255,3 @@ export function createMapSkin(overrideSkin = {}) {
   const baseSkin = cloneValue(defaultMapSkin)
   return mergeInto(baseSkin, overrideSkin)
 }
-

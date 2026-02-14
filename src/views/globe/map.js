@@ -1573,18 +1573,24 @@ export class World extends Mini3d {
 
   createHUIGUANG(h, color) {
     const huiguangTheme = this.theme.huiguang || {}
-    let geometry = new PlaneGeometry(0.35, h)
-    geometry.translate(0, h / 2, 0)
+    const width = Math.max(0.05, toNumber(huiguangTheme.width, 0.35))
+    const heightScale = Math.max(0.2, toNumber(huiguangTheme.heightScale, 1))
+    const height = Math.max(0.01, h * heightScale)
+    const resolvedColor = huiguangTheme.color ?? color
+    let geometry = new PlaneGeometry(width, height)
+    geometry.translate(0, height / 2, 0)
     const texture = this.assets.instance.getResource("huiguang")
     texture.colorSpace = SRGBColorSpace
     texture.wrapS = RepeatWrapping
     texture.wrapT = RepeatWrapping
     let material = new MeshBasicMaterial({
-      color: color,
+      color: resolvedColor,
       map: texture,
       transparent: true,
       opacity: toNumber(huiguangTheme.opacity, 0.4),
+      depthTest: huiguangTheme.depthTest ?? false,
       depthWrite: false,
+      fog: false,
       side: DoubleSide,
       blending: AdditiveBlending,
     })
