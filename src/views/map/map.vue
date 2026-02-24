@@ -31,6 +31,9 @@ function goBack() {
   canvasMap.value && canvasMap.value.goBack()
 }
 async function play() {
+  if (!canvasMap.value?.time || !canvasMap.value?.animateTl) {
+    return
+  }
   canvasMap.value.time.resume()
   canvasMap.value.animateTl.timeScale(1) // 设置播放速度正常
   canvasMap.value.animateTl.play()

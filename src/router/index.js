@@ -1,28 +1,62 @@
 import { createRouter, createWebHashHistory } from "vue-router"
+import { appRoutes } from "./routes"
+import { REDIRECT_MAIN, NOT_FOUND_ROUTE } from "./routes/base"
+import createRouteGuard from "./guard"
 
-const map = () => import("@/views/map/index.vue")
-const globe = () => import("@/views/globe/index.vue")
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
       path: "/",
-      component: map,
+      redirect: "/dashboard/workplace",
+      meta: {
+        requiresAuth: true,
+        hideInMenu: true,
+      },
+    },
+    {
+      path: "/login",
+      name: "login",
+      component: () => import("@/views/login/index.vue"),
+      meta: {
+        requiresAuth: false,
+        hideInMenu: true,
+      },
+    },
+    {
+      path: "/403",
+      name: "403",
+      component: () => import("@/views/exception/403.vue"),
+      meta: {
+        requiresAuth: true,
+        hideInMenu: true,
+      },
     },
     {
       path: "/map",
-      redirect: "/",
+      redirect: "/visualization/map",
+      meta: {
+        requiresAuth: true,
+        hideInMenu: true,
+      },
     },
     {
       path: "/globe",
-      component: globe,
+      redirect: "/visualization/globe",
+      meta: {
+        requiresAuth: true,
+        hideInMenu: true,
+      },
     },
-
-    {
-      path: "/:pathMatch(.*)",
-      redirect: "/",
-    },
+    ...appRoutes,
+    REDIRECT_MAIN,
+    NOT_FOUND_ROUTE,
   ],
+  scrollBehavior() {
+    return { top: 0 }
+  },
 })
+
+createRouteGuard(router)
 
 export default router

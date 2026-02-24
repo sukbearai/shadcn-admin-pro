@@ -201,6 +201,7 @@ const state = reactive({
 let clockTimer = null
 let earthIntroReadyPromise = null
 let disposeEarthChartClick = null
+let isUnmounted = false
 
 const LOADING_WEIGHTS = {
   assets: Number(LOADING_SETTINGS.weights?.assets ?? 0.82),
@@ -384,6 +385,7 @@ function isCloudIdleVisible() {
 }
 
 onMounted(() => {
+  isUnmounted = false
   updateHeaderDateTime()
   syncLoadingProgress()
   screenCloudLayerRef.value?.stopAndHide?.()
@@ -398,7 +400,9 @@ onMounted(() => {
   autofit.init(globeViewConfig.autofit)
   // 初始化资源
   initAssets(async () => {
+    if (isUnmounted) return
     await earthIntroReadyPromise
+    if (isUnmounted) return
     // 加载地图
     emitter.$emit(VIEW_EVENTS.LOAD_MAP, assets.value)
     // 等待地球场景可渲染，避免loading结束后空窗
@@ -411,6 +415,7 @@ onMounted(() => {
     bindEarthIntroClick()
     // 隐藏loading
     await hideLoading()
+    if (isUnmounted) return
     // 首屏云层是否展示由配置控制
     if (isCloudIdleVisible()) {
       screenCloudLayerRef.value?.setIntroActive?.(false)
@@ -424,6 +429,7 @@ onMounted(() => {
   })
 })
 onBeforeUnmount(() => {
+  isUnmounted = true
   emitter.$off(VIEW_EVENTS.MAP_PLAY_COMPLETE, handleMapPlayComplete)
   unbindEarthIntroClick()
   state.awaitingChinaClick = false
@@ -434,19 +440,24 @@ onBeforeUnmount(() => {
     clearInterval(clockTimer)
     clockTimer = null
   }
+  assets.value?.instance?.destroy?.()
+  assets.value = null
 })
 // 初始化加载资源
 function initAssets(onLoadCallback) {
   assets.value = new Assets({ skin: resolvedMapSkin })
 
   assets.value.instance.on("onProgress", (path, itemsLoaded, itemsTotal) => {
+    if (isUnmounted) return
     const progress = itemsTotal > 0 ? itemsLoaded / itemsTotal : 0
     tweenLoadingProgress("assets", progress)
   })
   // 资源加载完成
   assets.value.instance.on("onLoad", () => {
     tweenLoadingProgress("assets", 1, LOADING_TWEEN_SETTINGS.complete)
-    onLoadCallback && onLoadCallback()
+    Promise.resolve(onLoadCallback?.()).catch((error) => {
+      console.warn("[globe-view] onLoad callback failed", error)
+    })
   })
 }
 
@@ -489,6 +500,14 @@ function handleMenuSelect(index) {
 
 function goBack() {
   mapSceneRef.value && mapSceneRef.value.goBack()
+}
+
+function tweenIfTargets(timeline, targets, vars, position) {
+  const targetList = Array.isArray(targets) ? targets : gsap.utils.toArray(targets)
+  if (!targetList.length) {
+    return
+  }
+  timeline.to(targetList, vars, position)
 }
 function toggleCloudLayer() {
   state.cloudIdleVisible = !state.cloudIdleVisible
@@ -596,9 +615,15 @@ function handleMapPlayComplete() {
   tl.addLabel("menu", 0.5)
   tl.addLabel("card", 1)
   tl.addLabel("countCard", 3)
-  tl.to(VIEW_SELECTORS.HEADER, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
-  tl.to(VIEW_SELECTORS.BOTTOM_TRAY, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
-  tl.to(
+  tweenIfTargets(tl, VIEW_SELECTORS.HEADER, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
+  tweenIfTargets(
+    tl,
+    VIEW_SELECTORS.BOTTOM_TRAY,
+    { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" },
+    "start"
+  )
+  tweenIfTargets(
+    tl,
     VIEW_SELECTORS.TOP_MENU,
     {
       y: 0,
@@ -608,10 +633,16 @@ function handleMapPlayComplete() {
     },
     "-=1"
   )
-  tl.to(VIEW_SELECTORS.BOTTOM_RADAR, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "-=2")
-  tl.to(leftCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
-  tl.to(rightCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
-  tl.to(
+  tweenIfTargets(
+    tl,
+    VIEW_SELECTORS.BOTTOM_RADAR,
+    { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" },
+    "-=2"
+  )
+  tweenIfTargets(tl, leftCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
+  tweenIfTargets(tl, rightCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
+  tweenIfTargets(
+    tl,
     countCards,
     {
       y: 0,

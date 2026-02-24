@@ -1,5 +1,5 @@
 <template>
-  <div class="large-screen">
+  <div class="large-screen map-screen">
     <!-- 地图 -->
     <mapScene ref="mapSceneRef" :world-options="resolvedWorldOptions"></mapScene>
     <div class="large-screen-wrap" :id="VIEW_IDS.LARGE_SCREEN">
@@ -105,7 +105,7 @@
   </div>
 </template>
 <script setup>
-import { computed, shallowRef, ref, reactive, onMounted, onBeforeUnmount } from "vue"
+import { computed, nextTick, shallowRef, ref, reactive, onMounted, onBeforeUnmount } from "vue"
 import mapScene from "./map.vue"
 import mHeader from "@/components/mHeader/index.vue"
 import mMenu from "@/components/mMenu/index.vue"
@@ -149,6 +149,7 @@ const state = reactive({
 })
 
 let clockTimer = null
+let isUnmounted = false
 
 function formatDateTime() {
   const now = new Date()
@@ -167,6 +168,7 @@ function updateHeaderDateTime() {
 }
 
 onMounted(() => {
+  isUnmounted = false
   updateHeaderDateTime()
   clockTimer = setInterval(() => {
     updateHeaderDateTime()
@@ -178,21 +180,27 @@ onMounted(() => {
   autofit.init(mapViewConfig.autofit)
   // 初始化资源
   initAssets(async () => {
+    if (isUnmounted) return
     // 加载地图
     emitter.$emit(VIEW_EVENTS.LOAD_MAP, assets.value)
     // 隐藏loading
     await hideLoading()
+    if (isUnmounted) return
+    await nextTick()
     // 播放场景
-    mapSceneRef.value.play()
+    mapSceneRef.value?.play?.()
   })
 })
 onBeforeUnmount(() => {
+  isUnmounted = true
   emitter.$off(VIEW_EVENTS.MAP_PLAY_COMPLETE, handleMapPlayComplete)
   autofit.off(VIEW_SELECTORS.LARGE_SCREEN)
   if (clockTimer) {
     clearInterval(clockTimer)
     clockTimer = null
   }
+  assets.value?.instance?.destroy?.()
+  assets.value = null
 })
 // 初始化加载资源
 function initAssets(onLoadCallback) {
@@ -202,6 +210,7 @@ function initAssets(onLoadCallback) {
     progress: 0,
   }
   assets.value.instance.on("onProgress", (path, itemsLoaded, itemsTotal) => {
+    if (isUnmounted) return
     let p = Math.floor((itemsLoaded / itemsTotal) * 100)
     gsap.to(params, {
       progress: p,
@@ -212,7 +221,9 @@ function initAssets(onLoadCallback) {
   })
   // 资源加载完成
   assets.value.instance.on("onLoad", () => {
-    onLoadCallback && onLoadCallback()
+    Promise.resolve(onLoadCallback?.()).catch((error) => {
+      console.warn("[map-view] onLoad callback failed", error)
+    })
   })
 }
 
@@ -249,6 +260,14 @@ function handleMenuSelect(index) {
 function goBack() {
   mapSceneRef.value && mapSceneRef.value.goBack()
 }
+
+function tweenIfTargets(timeline, targets, vars, position) {
+  const targetList = Array.isArray(targets) ? targets : gsap.utils.toArray(targets)
+  if (!targetList.length) {
+    return
+  }
+  timeline.to(targetList, vars, position)
+}
 // 地图开始动画播放完成
 function handleMapPlayComplete() {
   let tl = gsap.timeline({ paused: false })
@@ -259,9 +278,15 @@ function handleMapPlayComplete() {
   tl.addLabel("menu", 0.5)
   tl.addLabel("card", 1)
   tl.addLabel("countCard", 3)
-  tl.to(VIEW_SELECTORS.HEADER, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
-  tl.to(VIEW_SELECTORS.BOTTOM_TRAY, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
-  tl.to(
+  tweenIfTargets(tl, VIEW_SELECTORS.HEADER, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "start")
+  tweenIfTargets(
+    tl,
+    VIEW_SELECTORS.BOTTOM_TRAY,
+    { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" },
+    "start"
+  )
+  tweenIfTargets(
+    tl,
     VIEW_SELECTORS.TOP_MENU,
     {
       y: 0,
@@ -271,10 +296,16 @@ function handleMapPlayComplete() {
     },
     "-=1"
   )
-  tl.to(VIEW_SELECTORS.BOTTOM_RADAR, { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" }, "-=2")
-  tl.to(leftCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
-  tl.to(rightCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
-  tl.to(
+  tweenIfTargets(
+    tl,
+    VIEW_SELECTORS.BOTTOM_RADAR,
+    { y: 0, opacity: 1, duration: 1.5, ease: "power4.out" },
+    "-=2"
+  )
+  tweenIfTargets(tl, leftCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
+  tweenIfTargets(tl, rightCards, { x: 0, opacity: 1, stagger: 0.2, duration: 1.5, ease: "power4.out" }, "card")
+  tweenIfTargets(
+    tl,
     countCards,
     {
       y: 0,
@@ -365,39 +396,41 @@ function handleMapPlayComplete() {
   margin-left: -5px;
 }
 
-/* 初始化动画开始位置 */
-.m-header {
-  transform: translateY(-100%);
-  opacity: 0;
-}
+/* 初始化动画开始位置（仅作用于 map 页面，避免影响 globe 页面） */
+.map-screen {
+  .m-header {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
 
-.top-menu {
-  transform: translateY(-250%);
-  opacity: 0;
-}
+  .top-menu {
+    transform: translateY(-250%);
+    opacity: 0;
+  }
 
-.count-card {
-  transform: translateY(150%);
-  opacity: 0;
-}
+  .count-card {
+    transform: translateY(150%);
+    opacity: 0;
+  }
 
-.left-card {
-  transform: translateX(-150%);
-  opacity: 0;
-}
+  .left-card {
+    transform: translateX(-150%);
+    opacity: 0;
+  }
 
-.right-card {
-  transform: translateX(150%);
-  opacity: 0;
-}
+  .right-card {
+    transform: translateX(150%);
+    opacity: 0;
+  }
 
-.bottom-tray {
-  transform: translateY(100%);
-  opacity: 0;
-}
+  .bottom-tray {
+    transform: translateY(100%);
+    opacity: 0;
+  }
 
-.bottom-radar {
-  transform: translateY(100%);
-  opacity: 0;
+  .bottom-radar {
+    transform: translateY(100%);
+    opacity: 0;
+  }
 }
 </style>
