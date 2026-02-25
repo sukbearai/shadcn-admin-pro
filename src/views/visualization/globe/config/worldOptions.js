@@ -1,4 +1,4 @@
-import { techGreenWorldSkin } from "@/views/map/skin/presets"
+import { techGreenWorldSkin } from "@/views/visualization/map/skin/presets"
 import { MAP_FOCUS_LABELS, MAP_RESOURCE_KEYS, REGION_NAMES } from "@/views/shared/viewConstants"
 
 const globeWorldOptions = {

@@ -7,7 +7,7 @@
 import { onMounted, shallowRef, onBeforeUnmount } from "vue"
 import { World } from "./map.js"
 import emitter from "@/utils/emitter"
-import { VIEW_EVENTS, VIEW_IDS } from "../shared/viewConstants"
+import { VIEW_EVENTS, VIEW_IDS } from "../../shared/viewConstants"
 
 const props = defineProps({
   worldOptions: {
@@ -30,20 +30,18 @@ function loadMap(assets) {
 function goBack() {
   canvasMap.value && canvasMap.value.goBack()
 }
-function resetScene() {
-  canvasMap.value && canvasMap.value.resetScene()
-}
 async function play() {
-  if (!canvasMap.value) return
+  if (!canvasMap.value?.time || !canvasMap.value?.animateTl) {
+    return
+  }
   canvasMap.value.time.resume()
   canvasMap.value.animateTl.timeScale(1) // 设置播放速度正常
-  canvasMap.value.animateTl.restart()
+  canvasMap.value.animateTl.play()
 }
 defineExpose({
   loadMap,
   play,
   goBack,
-  resetScene,
   canvasMap,
 })
 </script>

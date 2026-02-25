@@ -63,7 +63,7 @@ import {
   REGION_NAMES,
   VIEW_EVENTS,
   VIEW_SELECTORS,
-} from "../shared/viewConstants"
+} from "../../shared/viewConstants"
 import {
   formatInteger,
   resolveChildMapSuffix,
@@ -71,7 +71,7 @@ import {
   resolveVector3State,
   sortByValue,
   toNumber,
-} from "../shared/worldUtils"
+} from "../../shared/worldUtils"
 
 export class World extends Mini3d {
   constructor(canvas, assets, options = {}) {

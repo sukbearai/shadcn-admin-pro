@@ -1,11 +1,11 @@
-import BulkCommoditySalesChart from "@/views/map/components/BulkCommoditySalesChart.vue"
-import YearlyEconomyTrend from "@/views/map/components/YearlyEconomyTrend.vue"
-import EconomicTrendChart from "@/views/map/components/EconomicTrendChart.vue"
-import DistrictEconomicIncome from "@/views/map/components/DistrictEconomicIncome.vue"
-import PurposeSpecialFunds from "@/views/map/components/PurposeSpecialFunds.vue"
-import ProportionPopulationConsumption from "@/views/map/components/ProportionPopulationConsumption.vue"
-import ElectricityUsage from "@/views/map/components/ElectricityUsage.vue"
-import QuarterlyGrowthSituation from "@/views/map/components/QuarterlyGrowthSituation.vue"
+import BulkCommoditySalesChart from "@/views/visualization/map/components/BulkCommoditySalesChart.vue"
+import YearlyEconomyTrend from "@/views/visualization/map/components/YearlyEconomyTrend.vue"
+import EconomicTrendChart from "@/views/visualization/map/components/EconomicTrendChart.vue"
+import DistrictEconomicIncome from "@/views/visualization/map/components/DistrictEconomicIncome.vue"
+import PurposeSpecialFunds from "@/views/visualization/map/components/PurposeSpecialFunds.vue"
+import ProportionPopulationConsumption from "@/views/visualization/map/components/ProportionPopulationConsumption.vue"
+import ElectricityUsage from "@/views/visualization/map/components/ElectricityUsage.vue"
+import QuarterlyGrowthSituation from "@/views/visualization/map/components/QuarterlyGrowthSituation.vue"
 
 const PANEL_COMPONENTS = Object.freeze({
   bulkCommoditySalesChart: BulkCommoditySalesChart,

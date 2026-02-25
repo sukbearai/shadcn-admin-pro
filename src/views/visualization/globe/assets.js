@@ -3,8 +3,8 @@ import { FileLoader } from "three"
 import dotBlur from "@/assets/texture/dot_blur.png"
 import cloudLayerTexture from "@/assets/texture/cloud-layer.png"
 import { createMapSkin } from "../map/skin"
-import { MAP_FILE_PATHS } from "../shared/viewConstants"
-import { createAssetsManifest } from "../shared/assetsLoader"
+import { MAP_FILE_PATHS } from "../../shared/viewConstants"
+import { createAssetsManifest } from "../../shared/assetsLoader"
 
 const globeExtraTextures = {
   cloudLayer: cloudLayerTexture,

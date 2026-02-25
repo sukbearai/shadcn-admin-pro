@@ -1,10 +1,10 @@
-import { createViewConfig } from "../shared/viewConfigFactory"
+import { createViewConfig } from "../../shared/viewConfigFactory"
 import {
   MAP_FILE_PATHS,
   MAP_FOCUS_LABELS,
   MAP_RESOURCE_KEYS,
   REGION_NAMES,
-} from "../shared/viewConstants"
+} from "../../shared/viewConstants"
 import { techGreenWorldSkin } from "./skin/presets"
 
 const chinaMapFiles = {
@@ -23,7 +23,7 @@ export const mapViewConfig = createViewConfig({
   },
   mapScene: {
     skin: {
-      // 仅覆盖需要替换的皮肤字段，完整结构见 src/views/map/skin/index.js
+      // 仅覆盖需要替换的皮肤字段，完整结构见 src/views/visualization/map/skin/index.js
       assets: {
         mapFiles: chinaMapFiles,
       },

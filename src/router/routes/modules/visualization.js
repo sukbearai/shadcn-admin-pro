@@ -26,7 +26,7 @@ const VISUALIZATION = {
     {
       path: "map",
       name: "MapScreen",
-      component: () => import("@/views/map/index.vue"),
+      component: () => import("@/views/visualization/map/index.vue"),
       meta: {
         title: "中国地图大屏",
         requiresAuth: true,
@@ -40,7 +40,7 @@ const VISUALIZATION = {
     {
       path: "globe",
       name: "GlobeScreen",
-      component: () => import("@/views/globe/index.vue"),
+      component: () => import("@/views/visualization/globe/index.vue"),
       meta: {
         title: "地球飞线大屏",
         requiresAuth: true,

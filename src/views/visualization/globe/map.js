@@ -48,13 +48,13 @@ import {
 
 import { geoMercator } from "d3-geo"
 import labelIcon from "@/assets/texture/label-icon.png"
-import marketingCenters, { FLYLINE_CENTER_ID } from "@/views/map/map/marketingCenters"
-import scatterData from "@/views/map/map/scatter"
-import infoData from "@/views/map/map/infoData"
+import marketingCenters, { FLYLINE_CENTER_ID } from "@/views/visualization/map/map/marketingCenters"
+import scatterData from "@/views/visualization/map/map/scatter"
+import infoData from "@/views/visualization/map/map/infoData"
 import gsap from "gsap"
 import emitter from "@/utils/emitter"
 import { InteractionManager } from "three.interactive"
-import { ChildMap } from "@/views/map/map/childMap"
+import { ChildMap } from "@/views/visualization/map/map/childMap"
 import { createMapSkin } from "../map/skin"
 import {
   DEFAULT_MAP_RESOURCE_NAMES,
@@ -64,7 +64,7 @@ import {
   REGION_NAMES,
   VIEW_EVENTS,
   VIEW_SELECTORS,
-} from "../shared/viewConstants"
+} from "../../shared/viewConstants"
 import {
   formatInteger,
   resolveChildMapSuffix,
@@ -72,7 +72,7 @@ import {
   resolveVector3State,
   sortByValue,
   toNumber,
-} from "../shared/worldUtils"
+} from "../../shared/worldUtils"
 
 function resolveCloudLayerConfig(config, depth) {
   const defaultConfig = {

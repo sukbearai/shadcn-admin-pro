@@ -1,7 +1,7 @@
 import { Resource } from "@/mini3d"
 import { FileLoader } from "three"
 import { createMapSkin } from "./skin"
-import { createAssetsManifest } from "../shared/assetsLoader"
+import { createAssetsManifest } from "../../shared/assetsLoader"
 
 export class Assets {
   constructor(options = {}) {

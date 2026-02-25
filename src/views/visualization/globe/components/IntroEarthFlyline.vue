@@ -8,7 +8,7 @@
 import { onBeforeUnmount, onMounted, ref } from "vue"
 import earthFlyLine from "earth-flyline"
 import gsap from "gsap"
-import marketingCenters, { FLYLINE_CENTER_ID } from "@/views/map/map/marketingCenters"
+import marketingCenters, { FLYLINE_CENTER_ID } from "@/views/visualization/map/map/marketingCenters"
 import introTransitionConfig from "../config/introTransitionConfig"
 import { DEFAULT_CHINA_REGION_NAMES } from "@/views/shared/viewConstants"
 

@@ -125,7 +125,7 @@ import {
   VIEW_EVENTS,
   VIEW_IDS,
   VIEW_SELECTORS,
-} from "../shared/viewConstants"
+} from "../../shared/viewConstants"
 
 const assets = shallowRef(null)
 const mapSceneRef = ref(null)
