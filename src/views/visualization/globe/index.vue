@@ -682,8 +682,23 @@ function handleMapPlayComplete() {
   }
 }
 
-.large-screen-wrap {
-  z-index: 5;
+/* Force stable stacking order after route switching:
+ map canvas < intro/cloud layers < HUD panels */
+.large-screen {
+  isolation: isolate;
+}
+
+.large-screen > .map {
+  z-index: 1;
+}
+
+.large-screen > .earth-flyline-intro,
+.large-screen > .screen-cloud-layer {
+  z-index: 2 !important;
+}
+
+.large-screen > .large-screen-wrap {
+  z-index: 8;
 }
 
 .map-scene-hidden {
