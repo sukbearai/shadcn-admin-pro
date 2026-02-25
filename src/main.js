@@ -3,8 +3,11 @@ import router from "./router"
 import store from "./store"
 import directive from "./directive"
 import App from "./App.vue"
+import { initTheme } from "./utils/theme"
 import "normalize.css"
 import "./style.css"
+
+initTheme()
 
 const app = createApp(App)
 

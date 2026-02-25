@@ -5,7 +5,7 @@
     :class="[
       'h-8 rounded-full border px-3',
       isActive
-        ? 'border-primary/70 bg-primary text-primary-foreground shadow-[0_8px_20px_rgba(59,130,246,0.35)]'
+        ? 'border-primary/70 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
         : 'border-border/60 text-muted-foreground hover:border-border hover:bg-accent/60 hover:text-foreground',
     ]"
     @click="goto(itemData)"

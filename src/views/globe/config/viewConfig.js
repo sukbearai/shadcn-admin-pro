@@ -8,8 +8,8 @@ const globeViewConfig = createViewConfig({
   bottomTray: {
     switchViewLabel: "切换地图",
     returnLabel: "返回上级",
-    cloudOnLabel: "开启云层",
-    cloudOffLabel: "关闭云层",
+    cloudOnLabel: "开启云雾",
+    cloudOffLabel: "关闭云雾",
   },
 })
 

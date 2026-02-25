@@ -1,5 +1,13 @@
+<script setup>
+import { cn } from "@/lib/utils";
+
+const props = defineProps({
+  class: { type: null, required: false },
+});
+</script>
+
 <template>
-  <p class="text-sm text-muted-foreground" v-bind="$attrs">
+  <p :class="cn('text-sm text-muted-foreground', props.class)">
     <slot />
   </p>
 </template>

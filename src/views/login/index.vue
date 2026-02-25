@@ -1,100 +1,131 @@
 <template>
-  <div
-    class="grid h-full w-full place-items-center bg-[radial-gradient(circle_at_15%_10%,rgba(37,99,235,0.32),transparent_30%),radial-gradient(circle_at_80%_20%,rgba(14,165,233,0.2),transparent_26%),linear-gradient(135deg,#061224,#0b2142_60%,#0f2e57)] px-4"
-  >
-    <Card class="w-full max-w-md border-border/60 bg-card/90 shadow-2xl backdrop-blur">
-      <CardHeader class="space-y-2">
-        <CardTitle>GPData 权限控制台</CardTitle>
-        <CardDescription>登录后可按角色访问不同页面与功能</CardDescription>
-      </CardHeader>
+  <div class="login-page">
+    <div class="login-page__bg" :style="{ backgroundImage: `url(${loginBg})` }"></div>
+    <div class="login-page__overlay"></div>
+    <div class="login-page__panel-mask"></div>
 
-      <CardContent>
-        <form class="space-y-4" @submit.prevent="handleSubmit">
-          <div class="space-y-2">
-            <Label for="username">用户名</Label>
-            <Input
-              id="username"
-              v-model="form.username"
-              autocomplete="username"
-              placeholder="admin 或 user"
-            />
-          </div>
+    <section class="login-page__panel">
+      <header class="login-page__brand">
+        <img :src="logo" alt="平台标识" class="login-page__logo" />
+        <h1 class="login-page__title">恶意代码预警通报管理平台</h1>
+      </header>
 
-          <div class="space-y-2">
-            <Label for="password">密码</Label>
-            <Input
-              id="password"
-              v-model="form.password"
-              type="password"
-              autocomplete="current-password"
-              placeholder="admin 或 user"
-            />
-          </div>
+      <LoginForm class="login-page__form" />
 
-          <Alert v-if="errorMessage" variant="destructive">
-            <AlertDescription>{{ errorMessage }}</AlertDescription>
-          </Alert>
-
-          <Button :disabled="loading" class="w-full" type="submit">
-            {{ loading ? "登录中..." : "登录" }}
-          </Button>
-        </form>
-      </CardContent>
-
-      <CardFooter class="text-xs text-muted-foreground">
-        测试账号：admin/admin（管理员）或 user/user（普通用户）
-      </CardFooter>
-    </Card>
+      <p class="login-page__copyright">版权所有 © 江苏政采数据科技有限公司</p>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref } from "vue"
-import { useRouter } from "vue-router"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useUserStore } from "@/store"
+import loginBg from "@/assets/images/login-bg.png"
+import logo from "@/assets/images/logo.png"
+import LoginForm from "./components/LoginForm.vue"
+</script>
 
-const router = useRouter()
-const userStore = useUserStore()
+<style scoped>
+.login-page {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+  color: #d7ebff;
+}
 
-const loading = ref(false)
-const errorMessage = ref("")
+.login-page__bg {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
 
-const form = reactive({
-  username: "admin",
-  password: "admin",
-})
+.login-page__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(3, 30, 78, 0.18), rgba(1, 16, 43, 0.38));
+}
 
-async function handleSubmit() {
-  const username = String(form.username || "").trim()
-  const password = String(form.password || "").trim()
+.login-page__panel-mask {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(30vw, 480px);
+  min-width: 360px;
+  height: 100%;
+  border-left: 1px solid rgba(78, 146, 233, 0.35);
+  background: linear-gradient(180deg, rgba(2, 10, 31, 0.8) 0%, rgba(4, 20, 60, 0.78) 100%);
+  backdrop-filter: blur(2px);
+}
 
-  if (!username || !password || loading.value) {
-    return
-  }
+.login-page__panel {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 3;
+  display: flex;
+  width: min(30vw, 480px);
+  min-width: 360px;
+  flex-direction: column;
+  align-items: center;
+  padding: 168px 38px 20px;
+}
 
-  loading.value = true
-  errorMessage.value = ""
+.login-page__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
 
-  try {
-    await userStore.login({ username, password })
-    const redirect = router.currentRoute.value.query.redirect
-    router.push((redirect && String(redirect)) || "/dashboard/workplace")
-  } catch (error) {
-    errorMessage.value = error.message || "登录失败"
-  } finally {
-    loading.value = false
+.login-page__logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
+.login-page__title {
+  margin: 0;
+  border-bottom: 1px solid rgba(94, 157, 238, 0.6);
+  padding: 0 6px 8px;
+  color: #c5e4ff;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-align: center;
+}
+
+.login-page__form {
+  margin-top: 44px;
+}
+
+.login-page__copyright {
+  margin-top: auto;
+  color: rgba(176, 204, 239, 0.56);
+  font-size: 12px;
+}
+
+@media (max-width: 1024px) {
+  .login-page__panel-mask,
+  .login-page__panel {
+    width: min(42vw, 460px);
   }
 }
-</script>
+
+@media (max-width: 768px) {
+  .login-page__panel-mask,
+  .login-page__panel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .login-page__panel {
+    padding: 88px 24px 20px;
+    background: linear-gradient(180deg, rgba(2, 12, 36, 0.2) 0%, rgba(2, 10, 31, 0.82) 40%);
+  }
+
+  .login-page__title {
+    font-size: 20px;
+  }
+}
+</style>

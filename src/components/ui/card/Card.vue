@@ -1,7 +1,19 @@
+<script setup>
+import { cn } from "@/lib/utils";
+
+const props = defineProps({
+  class: { type: null, required: false },
+});
+</script>
+
 <template>
   <div
-    class="rounded-xl border border-border/70 bg-card text-card-foreground shadow"
-    v-bind="$attrs"
+    :class="
+      cn(
+        'rounded-lg border bg-card text-card-foreground shadow-sm',
+        props.class,
+      )
+    "
   >
     <slot />
   </div>

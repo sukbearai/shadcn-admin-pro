@@ -37,7 +37,15 @@ const useTabBarStore = defineStore("tabBar", {
   },
   actions: {
     updateTabList(route) {
-      if (route.name === REDIRECT_ROUTE_NAME) return
+      if (!route?.name || route.name === REDIRECT_ROUTE_NAME || route.meta?.hideInTab) {
+        return
+      }
+
+      const exists = this.tagList.some((item) => item.fullPath === route.fullPath)
+      if (exists) {
+        return
+      }
+
       this.tagList.push(formatTag(route))
       if (!route.meta?.ignoreCache) {
         uniquePush(this.cacheTabList, route.name)

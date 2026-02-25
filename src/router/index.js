@@ -8,10 +8,11 @@ const router = createRouter({
   routes: [
     {
       path: "/",
-      redirect: "/dashboard/workplace",
+      redirect: "/dashboard/overview",
       meta: {
         requiresAuth: true,
         hideInMenu: true,
+        hideInTab: true,
       },
     },
     {
@@ -21,6 +22,7 @@ const router = createRouter({
       meta: {
         requiresAuth: false,
         hideInMenu: true,
+        hideInTab: true,
       },
     },
     {
@@ -30,6 +32,7 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         hideInMenu: true,
+        hideInTab: true,
       },
     },
     {
@@ -38,6 +41,7 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         hideInMenu: true,
+        hideInTab: true,
       },
     },
     {
@@ -46,6 +50,7 @@ const router = createRouter({
       meta: {
         requiresAuth: true,
         hideInMenu: true,
+        hideInTab: true,
       },
     },
     ...appRoutes,

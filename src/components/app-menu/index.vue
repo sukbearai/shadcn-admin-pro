@@ -1,5 +1,5 @@
 <template>
-  <div ref="menuRootRef" class="relative h-full">
+  <div class="relative h-full">
     <ScrollArea class="h-full px-2 pb-14 pt-3">
       <nav class="space-y-3">
         <template v-for="group in menuTree" :key="group.name">
@@ -12,7 +12,7 @@
                   ? 'h-10 justify-center px-0'
                   : 'h-9 justify-start px-3 text-[13px]',
               ]"
-              :title="group.meta?.title || group.name"
+              :title="resolveGroupTitle(group)"
               @mouseenter="onGroupEnter(group, $event)"
               @click="handleGroupClick(group, $event)"
             >
@@ -47,28 +47,30 @@
       </nav>
     </ScrollArea>
 
-    <div
-      v-if="isCollapsed && hoverGroup"
-      class="absolute left-[calc(100%+6px)] z-[70] w-56 rounded-lg border border-border/80 bg-card/95 p-2 shadow-2xl backdrop-blur"
-      :style="hoverPanelStyle"
-      @mouseenter="cancelClosePanel"
-      @mouseleave="scheduleClosePanel"
-    >
-      <p class="px-2 pb-1 pt-1 text-xs uppercase tracking-wider text-muted-foreground">
-        {{ hoverGroup.meta?.title || hoverGroup.name }}
-      </p>
-
-      <Button
-        v-for="item in hoverGroup.children"
-        :key="item.name"
-        :variant="isActive(item) ? 'secondary' : 'ghost'"
-        class="h-9 w-full justify-start px-2.5 text-[13px]"
-        @click="selectChild(item)"
+    <Teleport to="body">
+      <div
+        v-if="isCollapsed && hoverGroup"
+        class="fixed z-[120] w-56 rounded-lg border border-border/90 bg-popover p-2 text-popover-foreground shadow-2xl"
+        :style="hoverPanelStyle"
+        @mouseenter="cancelClosePanel"
+        @mouseleave="scheduleClosePanel"
       >
-        <component :is="resolveIcon(item, true)" class="mr-2 size-3.5 shrink-0" />
-        <span class="truncate">{{ item.meta?.title || item.name }}</span>
-      </Button>
-    </div>
+        <p class="px-2 pb-1 pt-1 text-xs uppercase tracking-wider text-muted-foreground">
+          {{ hoverGroup.meta?.title || hoverGroup.name }}
+        </p>
+
+        <Button
+          v-for="item in hoverGroup.children"
+          :key="item.name"
+          :variant="isActive(item) ? 'secondary' : 'ghost'"
+          class="h-9 w-full justify-start px-2.5 text-[13px]"
+          @click="selectChild(item)"
+        >
+          <component :is="resolveIcon(item, true)" class="mr-2 size-3.5 shrink-0" />
+          <span class="truncate">{{ item.meta?.title || item.name }}</span>
+        </Button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -80,9 +82,6 @@ import {
   Globe,
   LayoutDashboard,
   Map,
-  Shield,
-  UserRound,
-  Users,
 } from "lucide-vue-next"
 import { computed, onBeforeUnmount, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
@@ -102,15 +101,10 @@ const iconMap = {
   visualization: BarChart3,
   MapScreen: Map,
   GlobeScreen: Globe,
-  system: Shield,
-  SystemUsers: Users,
-  account: UserRound,
-  AccountProfile: UserRound,
 }
 
 const isCollapsed = computed(() => appStore.menuCollapse)
 const hoverGroup = ref(null)
-const menuRootRef = ref(null)
 const hoverPanelStyle = ref({})
 const expandedGroups = ref({})
 let closeTimer = null
@@ -153,6 +147,14 @@ onBeforeUnmount(() => {
 
 function hasChildren(item) {
   return Array.isArray(item.children) && item.children.length > 0
+}
+
+function resolveGroupTitle(group) {
+  if (isCollapsed.value && hasChildren(group)) {
+    return undefined
+  }
+
+  return group.meta?.title || group.name
 }
 
 function resolveIcon(item, child = false) {
@@ -199,18 +201,22 @@ function openHoverPanel(group, event) {
     return
   }
 
-  const rootEl = menuRootRef.value
-  if (!rootEl) return
-
   const rect = event.currentTarget.getBoundingClientRect()
-  const rootRect = rootEl.getBoundingClientRect()
+  const panelWidth = 224
   const panelHeight = 44 + group.children.length * 42
-  const maxTop = Math.max(8, rootEl.clientHeight - panelHeight - 8)
-  const rawTop = rect.top - rootRect.top
-  const top = Math.min(Math.max(rawTop, 8), maxTop)
+  const viewportPadding = 8
+  const top = Math.min(
+    Math.max(rect.top, viewportPadding),
+    Math.max(viewportPadding, window.innerHeight - panelHeight - viewportPadding)
+  )
+  const left = Math.min(
+    rect.right + 8,
+    Math.max(viewportPadding, window.innerWidth - panelWidth - viewportPadding)
+  )
 
   hoverGroup.value = group
   hoverPanelStyle.value = {
+    left: `${Math.max(left, viewportPadding)}px`,
     top: `${top}px`,
   }
 }
@@ -248,6 +254,7 @@ function cancelClosePanel() {
 
 function clearHoverPanel() {
   hoverGroup.value = null
+  hoverPanelStyle.value = {}
 }
 
 function isGroupOpen(groupName) {

@@ -1,44 +1,29 @@
 <script setup>
-import { computed, useAttrs } from "vue"
-import { cn } from "@/lib/utils"
+import { useVModel } from "@vueuse/core";
+import { cn } from "@/lib/utils";
 
 const props = defineProps({
-  modelValue: {
-    type: [String, Number],
-    default: "",
-  },
-  type: {
-    type: String,
-    default: "text",
-  },
-})
+  defaultValue: { type: [String, Number], required: false },
+  modelValue: { type: [String, Number], required: false },
+  class: { type: null, required: false },
+});
 
-const emit = defineEmits(["update:modelValue"])
-const attrs = useAttrs()
+const emits = defineEmits(["update:modelValue"]);
 
-const delegatedAttrs = computed(() => {
-  const { class: _class, ...delegated } = attrs
-  return delegated
-})
-
-const className = computed(() => {
-  return cn(
-    "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-    attrs.class
-  )
-})
-
-function onInput(event) {
-  emit("update:modelValue", event.target.value)
-}
+const modelValue = useVModel(props, "modelValue", emits, {
+  passive: true,
+  defaultValue: props.defaultValue,
+});
 </script>
 
 <template>
   <input
-    :type="type"
-    :value="modelValue"
-    v-bind="delegatedAttrs"
-    :class="className"
-    @input="onInput"
+    v-model="modelValue"
+    :class="
+      cn(
+        'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-foreground file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+        props.class,
+      )
+    "
   />
 </template>

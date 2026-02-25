@@ -1,16 +1,28 @@
 <script setup>
-import { computed, useAttrs } from "vue"
-import { cn } from "@/lib/utils"
+import { reactiveOmit } from "@vueuse/core";
+import { Label } from "reka-ui";
+import { cn } from "@/lib/utils";
 
-const attrs = useAttrs()
+const props = defineProps({
+  for: { type: String, required: false },
+  asChild: { type: Boolean, required: false },
+  as: { type: null, required: false },
+  class: { type: null, required: false },
+});
 
-const className = computed(() => {
-  return cn("text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70", attrs.class)
-})
+const delegatedProps = reactiveOmit(props, "class");
 </script>
 
 <template>
-  <label v-bind="$attrs" :class="className">
+  <Label
+    v-bind="delegatedProps"
+    :class="
+      cn(
+        'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
+        props.class,
+      )
+    "
+  >
     <slot />
-  </label>
+  </Label>
 </template>

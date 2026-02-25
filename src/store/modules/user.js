@@ -70,7 +70,7 @@ const useUserStore = defineStore("user", {
       const { username, password } = form
       const targetUser = MOCK_USERS[username]
       if (!targetUser || targetUser.password !== password) {
-        throw new Error("账号或密码错误（可用：admin/admin 或 user/user）")
+        throw new Error("账号或密码错误")
       }
 
       const token = `token-${targetUser.role}-${Date.now()}`

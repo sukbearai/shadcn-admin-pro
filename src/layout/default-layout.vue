@@ -1,7 +1,5 @@
 <template>
-  <div
-    class="h-full w-full bg-[radial-gradient(circle_at_20%_-30%,rgba(37,99,235,0.32),transparent_45%),linear-gradient(180deg,#061224_0%,#08152b_100%)] text-foreground"
-  >
+  <div class="h-full w-full bg-background text-foreground">
     <template v-if="hideLayout">
       <div class="h-full w-full">
         <PageLayout />

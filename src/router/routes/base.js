@@ -7,6 +7,7 @@ export const REDIRECT_MAIN = {
   meta: {
     requiresAuth: true,
     hideInMenu: true,
+    hideInTab: true,
   },
   children: [
     {
@@ -16,6 +17,7 @@ export const REDIRECT_MAIN = {
       meta: {
         requiresAuth: true,
         hideInMenu: true,
+        hideInTab: true,
       },
     },
   ],
@@ -28,5 +30,6 @@ export const NOT_FOUND_ROUTE = {
   meta: {
     requiresAuth: false,
     hideInMenu: true,
+    hideInTab: true,
   },
 }

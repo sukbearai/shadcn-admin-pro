@@ -6,7 +6,7 @@
         <CardDescription>你当前角色无权限访问此页面</CardDescription>
       </CardHeader>
       <CardContent>
-        <Button @click="goHome">返回工作台</Button>
+        <Button @click="goHome">返回概览</Button>
       </CardContent>
     </Card>
   </div>

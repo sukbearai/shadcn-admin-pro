@@ -1,5 +1,5 @@
 export default {
-  theme: "dark",
+  theme: "system",
   navbar: true,
   menu: true,
   hideMenu: false,

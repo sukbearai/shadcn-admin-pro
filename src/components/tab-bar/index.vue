@@ -12,7 +12,7 @@
     </ScrollArea>
 
     <div class="ml-3 flex items-center">
-      <Button size="sm" variant="outline" @click="closeAll">关闭全部</Button>
+      <Button size="sm" variant="outline" class="rounded-full px-3" @click="closeAll">关闭全部</Button>
     </div>
   </div>
 </template>
@@ -31,9 +31,22 @@ const router = useRouter()
 const tabBarStore = useTabBarStore()
 
 const tagList = computed(() => tabBarStore.getTabList)
+const hiddenTabNames = new Set([
+  "notFound",
+  "403",
+  "MapScreen",
+  "GlobeScreen",
+  "Redirect",
+  "redirectWrapper",
+  "WorkplaceLegacy",
+])
+
+pruneHiddenTabs()
 
 const disposeRouteListener = listenerRouteChange((route) => {
+  pruneHiddenTabs()
   if (
+    !route.meta?.hideInTab &&
     !route.meta?.noAffix &&
     !tagList.value.some((tag) => tag.fullPath === route.fullPath)
   ) {
@@ -48,5 +61,18 @@ onUnmounted(() => {
 function closeAll() {
   tabBarStore.resetTabList()
   router.push({ name: DEFAULT_ROUTE_NAME })
+}
+
+function pruneHiddenTabs() {
+  const filtered = tagList.value.filter((tag, index) => {
+    if (index === 0) {
+      return true
+    }
+    return !hiddenTabNames.has(tag.name)
+  })
+
+  if (filtered.length !== tagList.value.length) {
+    tabBarStore.freshTabList(filtered)
+  }
 }
 </script>

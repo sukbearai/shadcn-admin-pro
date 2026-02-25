@@ -5,15 +5,19 @@
   "tailwind": {
     "config": "tailwind.config.js",
     "css": "src/style.css",
-    "baseColor": "slate",
+    "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
   },
+  "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",
     "ui": "@/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
+  },
+  "registries": {
+    "@acme": "https://acme.com/r/{name}.json"
   }
 }

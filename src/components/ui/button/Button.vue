@@ -1,67 +1,23 @@
 <script setup>
-import { cva } from "class-variance-authority"
-import { computed, useAttrs } from "vue"
-import { cn } from "@/lib/utils"
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
-        outline: "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
-        icon: "h-9 w-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
+import { Primitive } from "reka-ui";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from ".";
 
 const props = defineProps({
-  variant: {
-    type: String,
-    default: "default",
-  },
-  size: {
-    type: String,
-    default: "default",
-  },
-  as: {
-    type: String,
-    default: "button",
-  },
-})
-
-const attrs = useAttrs()
-
-const delegatedAttrs = computed(() => {
-  const { class: _class, type: _type, ...delegated } = attrs
-  return delegated
-})
-
-const className = computed(() => {
-  return cn(buttonVariants({ variant: props.variant, size: props.size }), attrs.class)
-})
-
-const buttonType = computed(() => {
-  return props.as === "button" ? attrs.type || "button" : undefined
-})
+  variant: { type: null, required: false },
+  size: { type: null, required: false },
+  class: { type: null, required: false },
+  asChild: { type: Boolean, required: false },
+  as: { type: null, required: false, default: "button" },
+});
 </script>
 
 <template>
-  <component :is="as" v-bind="delegatedAttrs" :type="buttonType" :class="className">
+  <Primitive
+    :as="as"
+    :as-child="asChild"
+    :class="cn(buttonVariants({ variant, size }), props.class)"
+  >
     <slot />
-  </component>
+  </Primitive>
 </template>

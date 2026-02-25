@@ -4,19 +4,30 @@ const DASHBOARD = {
   path: "/dashboard",
   name: "dashboard",
   component: DEFAULT_LAYOUT,
-  redirect: "/dashboard/workplace",
+  redirect: "/dashboard/overview",
   meta: {
-    title: "仪表盘",
+    title: "概览",
     requiresAuth: true,
     order: 0,
+    hideChildrenInMenu: true,
   },
   children: [
     {
       path: "workplace",
+      name: "WorkplaceLegacy",
+      redirect: "/dashboard/overview",
+      meta: {
+        requiresAuth: true,
+        hideInMenu: true,
+        hideInTab: true,
+      },
+    },
+    {
+      path: "overview",
       name: "Workplace",
       component: () => import("@/views/workplace/index.vue"),
       meta: {
-        title: "工作台",
+        title: "概览",
         requiresAuth: true,
         roles: ["*"],
       },

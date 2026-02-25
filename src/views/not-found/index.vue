@@ -6,7 +6,7 @@
         <CardDescription>页面不存在或已被移除</CardDescription>
       </CardHeader>
       <CardContent>
-        <Button @click="goHome">返回工作台</Button>
+        <Button @click="goHome">返回概览</Button>
       </CardContent>
     </Card>
   </div>
