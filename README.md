@@ -7,8 +7,6 @@
 
 ## 预览
 
-<img width="100%" align="center" src="./images/demo.png">
-
 <p align="center">
   <img width="49%" src="./src/assets/images/screencapture-001.png" alt="中国地图大屏缩略图" />
   <img width="49%" src="./src/assets/images/screencapture-002.png" alt="地球飞线大屏缩略图" />
@@ -60,7 +58,6 @@ pnpm run preview  # 本地预览构建结果
 - `/#/visualization/screens`：大屏选择页
 - `/#/visualization/map`：中国地图大屏
 - `/#/visualization/globe`：地球飞线大屏（管理员）
-- `/#/map`、`/#/globe`：兼容入口，分别重定向到 `visualization` 子路由
 
 ## 项目结构
 

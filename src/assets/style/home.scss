@@ -1,8 +1,7 @@
 @use "./font";
-body {
+.large-screen {
   font-family: "SourceHanSansCN", "-apple-system", "BlinkMacSystemFont", "Helvetica Neue", Helvetica, "Segoe UI",
     "Arial", "Roboto", "PingFang SC", "miui", "Hiragino Sans GB", "Microsoft Yahei", sans-serif;
-  background: #000;
   -webkit-user-select: none; /*webkit浏览器*/
   user-select: none;
 }

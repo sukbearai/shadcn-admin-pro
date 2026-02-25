@@ -1,5 +1,5 @@
 <template>
-  <div class="grid h-full place-items-center p-6">
+  <div class="grid h-full place-items-center bg-background p-6">
     <Card class="w-full max-w-lg border-border/60 bg-card/75 text-center">
       <CardHeader>
         <CardTitle class="text-6xl">403</CardTitle>

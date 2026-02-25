@@ -35,24 +35,6 @@ const router = createRouter({
         hideInTab: true,
       },
     },
-    {
-      path: "/map",
-      redirect: "/visualization/map",
-      meta: {
-        requiresAuth: true,
-        hideInMenu: true,
-        hideInTab: true,
-      },
-    },
-    {
-      path: "/globe",
-      redirect: "/visualization/globe",
-      meta: {
-        requiresAuth: true,
-        hideInMenu: true,
-        hideInTab: true,
-      },
-    },
     ...appRoutes,
     REDIRECT_MAIN,
     NOT_FOUND_ROUTE,
